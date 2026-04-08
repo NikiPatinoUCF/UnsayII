@@ -20,7 +20,6 @@ const corpus = [
 
   // Never said — held in the body
   "Don't let me come here anymore.",
-  "I was sexually abused.",
   "I don't want to get married.",
   "I'm fine.",
   "I'm fine.",
@@ -29,6 +28,6 @@ const corpus = [
   "It will mean many things.",
   "Close your eyes and pretend.",
   "I already had the best part of you.",
-  "Are you a lesbian?",
+  "What are you?",
   "He filed for divorce.",
 ];
