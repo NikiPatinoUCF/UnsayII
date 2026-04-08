@@ -45,6 +45,7 @@ class Particle {
     let start = floor(random(0, maxStart + 1));
     let size = min(floor(random(2, 5)), words.length - start);
     this.text = words.slice(start, start + size).join(' ');
+    console.log(this.text);
   }
 
   finished() {
