@@ -85,13 +85,14 @@ function draw() {
     }
   }
 
-  // Fish eating: nearby resting words with no clicks fade out
+  // Fish eating: a single pass marks the word; it then fades out on its own
   for (let f of fragments) {
-    if (f.state !== 'resting' || f.clickCount !== 0) continue;
+    if (f.beingEaten || f.state !== 'resting' || f.clickCount !== 0) continue;
     for (let fi of fish) {
       let wy = fi.y + sin(fi.wob) * 2;
-      if (dist(fi.x, wy, f.x, f.y) < fi.bw * 0.75) {
-        f.eatAlpha = max(0, f.eatAlpha - 0.007);
+      if (dist(fi.x, wy, f.x, f.y) < fi.bw * 0.8) {
+        f.beingEaten = true;
+        break;
       }
     }
   }
@@ -152,6 +153,7 @@ class Fragment {
     this.vortexStartX  = 0;
     this.vortexStartY  = 0;
     this.eatAlpha      = 1.0;
+    this.beingEaten    = false;
   }
 
   isClickable() {
@@ -179,7 +181,10 @@ class Fragment {
 
   update() {
     if (this.state === 'done') return;
-    if (this.eatAlpha <= 0) { this.state = 'done'; return; }
+    if (this.beingEaten) {
+      this.eatAlpha = max(0, this.eatAlpha - 0.014);
+      if (this.eatAlpha <= 0) { this.state = 'done'; return; }
+    }
 
     if (this.state === 'sinking') {
       this.vx  *= 0.98;
