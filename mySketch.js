@@ -7,9 +7,9 @@ let bucket        = [];
 let fish          = [];
 
 // Meter state
-let heldCount     = 0;
-let carriedSmooth = 1.0;
-let heldSmooth    = 0.0;
+let saidEatenCount = 0;
+let carriedSmooth  = 1.0;
+let heldSmooth     = 0.0;
 
 // Ending
 let gameComplete  = false;
@@ -62,7 +62,7 @@ function setup() {
 // ── Draw ───────────────────────────────────────────────────────────────────
 function draw() {
   // Completion check
-  if (!gameComplete && bucket.length >= corpusSaid.length && heldCount >= corpusUnsaid.length) {
+  if (!gameComplete && bucket.length >= corpusUnsaid.length && saidEatenCount >= corpusSaid.length) {
     gameComplete = true;
   }
   if (gameComplete) sunsetT = min(1, sunsetT + 1 / 600);  // ~10 seconds
@@ -103,7 +103,6 @@ function draw() {
   drawBucket();
   drawFigure();
   drawMeters();
-  drawVortex();
   drawCast();
   drawHeading();
 
@@ -122,7 +121,7 @@ function draw() {
       bucket.push(fragments[i].text);
       fragments.splice(i, 1);
     } else if (s === 'done') {
-      if (fragments[i].type === 'unsaid' && fragments[i].vortexT >= 1) heldCount++;
+      if (fragments[i].type === 'said' && fragments[i].beingEaten) saidEatenCount++;
       fragments.splice(i, 1);
     }
   }
@@ -179,15 +178,13 @@ class Fragment {
     this.returnStartY  = surfaceY;
     this.clickCount    = 0;
     this.type          = type || 'said';
-    this.vortexT       = 0;
-    this.vortexStartX  = 0;
-    this.vortexStartY  = 0;
     this.eatAlpha      = 1.0;
     this.beingEaten    = false;
   }
 
   isClickable() {
-    return this.state === 'sinking' || this.state === 'resting' || this.state === 'rising';
+    return this.type === 'unsaid' &&
+      (this.state === 'sinking' || this.state === 'resting' || this.state === 'rising');
   }
 
   click() {
@@ -265,47 +262,14 @@ class Fragment {
       this.x = mt*mt*this.returnStartX + 2*mt*e*cx + e*e*bucketX;
       this.y = mt*mt*this.returnStartY + 2*mt*e*cy  + e*e*(bucketY - 11);
       if (this.returnT >= 1) {
-        if (this.type === 'said') {
-          this.state = 'recovered';
-        } else {
-          this.state        = 'vortex';
-          this.vortexT      = 0;
-          this.vortexStartX = this.x;
-          this.vortexStartY = this.y;
-        }
+        this.state = 'recovered';
       }
     }
 
-    else if (this.state === 'vortex') {
-      this.vortexT += 1 / 75;
-      let t  = constrain(this.vortexT, 0, 1);
-      let e  = t * t;  // accelerate inward
-      let cx = figX;
-      let cy = torsoTop + figBodyH * 0.5;
-      let dx = this.vortexStartX - cx;
-      let dy = this.vortexStartY - cy;
-      let r  = sqrt(dx * dx + dy * dy) * (1 - e);
-      let a0 = atan2(dy, dx);
-      let θ  = a0 - t * TWO_PI * 1.5;  // 1.5 counterclockwise rotations
-      this.x = cx + r * cos(θ);
-      this.y = cy + r * sin(θ);
-      if (this.vortexT >= 1) this.state = 'done';
-    }
   }
 
   show() {
     if (this.state === 'recovered' || this.state === 'done') return;
-
-    if (this.state === 'vortex') {
-      let t = constrain(this.vortexT, 0, 1);
-      push();
-        translate(this.x, this.y);
-        noStroke();
-        fill(200, 210, 230, (1 - t) * 190);
-        text(this.text, 0, 0);
-      pop();
-      return;
-    }
 
     let tDepth = constrain(map(this.y, surfaceY, height, 0, 1), 0, 1);
     let c = lerpColor(warmWhite, deepBlue, tDepth);
@@ -359,16 +323,16 @@ class Fish {
     // Drop target if it's no longer eligible
     if (this.target) {
       let f = this.target;
-      if (f.state !== 'resting' || f.clickCount !== 0 || f.beingEaten) {
+      if (f.type !== 'said' || f.state !== 'resting' || f.beingEaten) {
         this.target = null;
       }
     }
 
-    // Seek the nearest eligible resting word
+    // Seek the nearest eligible resting said word
     if (!this.target) {
       let best = null, bestD = Infinity;
       for (let f of fragments) {
-        if (f.state !== 'resting' || f.clickCount !== 0 || f.beingEaten) continue;
+        if (f.type !== 'said' || f.state !== 'resting' || f.beingEaten) continue;
         let d = dist(this.x, this.y, f.x, f.y);
         if (d < bestD) { bestD = d; best = f; }
       }
@@ -540,32 +504,10 @@ function drawFigure() {
   pop();
 }
 
-function drawVortex() {
-  let cx = figX;
-  let cy = torsoTop + figBodyH * 0.5;
-  // Only draw when a word is actively spiraling in
-  let active = false;
-  for (let f of fragments) {
-    if (f.state === 'vortex') { active = true; break; }
-  }
-  if (!active) return;
-  push();
-    noFill();
-    let spin = frameCount * 0.18;
-    for (let i = 0; i < 3; i++) {
-      let a0 = spin + i * TWO_PI / 3;
-      let r  = 10;
-      stroke(200, 210, 230, 100);
-      strokeWeight(0.9);
-      arc(cx, cy, r * 2, r * 2, a0, a0 + PI * 0.65);
-    }
-  pop();
-}
-
 function drawBucket() {
   let bh  = 48, tw = 38, bw = 26;
   let top = bucketY - bh;
-  let fillRatio = min(bucket.length / corpusSaid.length, 1);
+  let fillRatio = min(bucket.length / corpusUnsaid.length, 1);
 
   push();
     stroke(160, 130, 90, 200);
@@ -608,8 +550,8 @@ function drawHeading() {
 }
 
 function drawMeters() {
-  let carriedTarget = 1 - constrain(bucket.length / corpusSaid.length, 0, 1);
-  let heldTarget    = constrain(heldCount / corpusUnsaid.length, 0, 1);
+  let carriedTarget = 1 - constrain(bucket.length / corpusUnsaid.length, 0, 1);
+  let heldTarget    = constrain(saidEatenCount / corpusSaid.length, 0, 1);
   carriedSmooth = lerp(carriedSmooth, carriedTarget, 0.04);
   heldSmooth    = lerp(heldSmooth,    heldTarget,    0.04);
 
