@@ -65,6 +65,7 @@ function draw() {
   drawBucket();
   drawFigure();
   drawCast();
+  drawHeading();
 
   // Spawn queued fragments when their delay elapses
   for (let i = fragmentQueue.length - 1; i >= 0; i--) {
@@ -84,20 +85,33 @@ function draw() {
     }
   }
 
-  // Cursor: hand when hovering a clickable fragment
+  // Cursor: hand when hovering a clickable fragment or the figure
   let hovering = false;
   for (let f of fragments) {
-    if (f.isClickable() && dist(mouseX, mouseY, f.x, f.y) < 55) {
+    if (f.isClickable() && dist(mouseX, mouseY, f.x, f.y) < 65) {
       hovering = true;
       break;
     }
   }
-  cursor(hovering ? HAND : ARROW);
+  let figHover = castState === 'idle' &&
+    mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
+    mouseY > rodTip.y - 20 && mouseY < surfaceY;
+  cursor(hovering || figHover ? HAND : ARROW);
 }
 
 // ── Input ──────────────────────────────────────────────────────────────────
 function mouseClicked() {
   if (mouseButton !== LEFT) return;
+
+  // Click figure/rod to cast manually
+  if (castState === 'idle' &&
+      mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
+      mouseY > rodTip.y - 20 && mouseY < surfaceY) {
+    triggerCast();
+    return;
+  }
+
+  // Click nearest word
   let nearest = null, nearestDist = 65;
   for (let f of fragments) {
     if (!f.isClickable()) continue;
@@ -123,13 +137,32 @@ class Fragment {
     this.state         = 'sinking';
     this.returnT       = 0;
     this.returnStartX  = 0;
+    this.returnStartY  = surfaceY;
+    this.clickCount    = 0;
   }
 
-  isClickable() { return this.state === 'resting' || this.state === 'rising'; }
+  isClickable() {
+    return this.state === 'sinking' || this.state === 'resting' || this.state === 'rising';
+  }
 
   click() {
-    this.lift = min(1.0, this.lift + 0.5);
-    if (this.state === 'resting') { this.state = 'rising'; this.vy = 0; }
+    this.clickCount++;
+    if (this.clickCount >= 5) {
+      // 5 clicks — reel in from wherever the word is
+      this.returnStartX = this.x;
+      this.returnStartY = this.y;
+      this.returnT = 0;
+      this.state = 'returning';
+      return;
+    }
+    if (this.state === 'sinking') {
+      this.vy = max(0.05, this.vy - 0.5);  // slow the descent
+    } else if (this.state === 'resting') {
+      this.lift = min(1.0, this.lift + 0.5);
+      this.state = 'rising'; this.vy = 0;
+    } else if (this.state === 'rising') {
+      this.lift = min(1.0, this.lift + 0.5);
+    }
   }
 
   update() {
@@ -166,8 +199,9 @@ class Fragment {
       }
       // Reached surface — begin return journey
       if (this.y <= surfaceY) {
-        this.y = surfaceY;
         this.returnStartX = this.x;
+        this.returnStartY = surfaceY;
+        this.y = surfaceY;
         this.returnT = 0;
         this.state = 'returning';
       }
@@ -179,10 +213,10 @@ class Fragment {
       // Ease in-out cubic
       let e  = t < 0.5 ? 4*t*t*t : 1 - pow(-2*t + 2, 3) / 2;
       let cx = (this.returnStartX + bucketX) / 2;
-      let cy = surfaceY - height * 0.09;
+      let cy = surfaceY - height * 0.09;  // always arcs above surface
       let mt = 1 - e;
       this.x = mt*mt*this.returnStartX + 2*mt*e*cx + e*e*bucketX;
-      this.y = mt*mt*surfaceY          + 2*mt*e*cy  + e*e*(bucketY - 11);
+      this.y = mt*mt*this.returnStartY + 2*mt*e*cy  + e*e*(bucketY - 11);
       if (this.returnT >= 1) this.state = 'recovered';
     }
   }
@@ -198,6 +232,10 @@ class Fragment {
     } else if (this.state === 'resting') {
       let pulse = (sin(frameCount * 0.05 + this.driftPhase) + 1) * 0.5;
       c = lerpColor(c, color(255, 255, 240, 200), pulse * 0.15);
+    }
+    // Each click brightens the word slightly — feedback for progress toward 5
+    if (this.clickCount > 0 && this.clickCount < 5) {
+      c = lerpColor(c, color(255, 255, 245, 240), this.clickCount * 0.12);
     }
 
     push();
@@ -275,6 +313,17 @@ function drawBucket() {
     stroke(160, 130, 90, 160);
     strokeWeight(1);
     arc(bucketX, top, tw * 0.7, 8, PI, TWO_PI);
+  pop();
+}
+
+function drawHeading() {
+  push();
+    textSize(16);
+    textStyle(ITALIC);
+    textAlign(LEFT, TOP);
+    noStroke();
+    fill(255, 245, 220, 68);
+    text('You can try to unsay it, but\u2026', width * 0.05, height * 0.05);
   pop();
 }
 
