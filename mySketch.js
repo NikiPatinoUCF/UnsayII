@@ -1,10 +1,11 @@
 // UNSAY — interactive game
-// corpus.js loaded first, provides: const corpus (array of memoir lines)
+// corpus.js loaded first, provides: const corpusSaid, const corpusUnsaid
 
 // ── Globals ────────────────────────────────────────────────────────────────
 let fragments     = [];
 let fragmentQueue = [];
 let bucket        = [];
+let bodyWords     = [];   // absorbed unsaid words: {text, x, y, age}
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -19,7 +20,7 @@ let castState       = 'idle';
 let castTimer       = 0;
 let castStart, castCtrl, castEnd;
 let castLastTrigger = 0;
-let nextCastIn      = 0;  // first cast fires on frame 0
+let nextCastIn      = 0;
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 function setup() {
@@ -33,7 +34,6 @@ function setup() {
   warmWhite = color(255, 248, 230, 220);
   deepBlue  = color(15, 30, 65, 175);
 
-  // Figure geometry (also used by cast and bucket)
   figX      = width  * 0.12;
   figBodyH  = height * 0.13;
   figBodyW  = width  * 0.018;
@@ -46,7 +46,6 @@ function setup() {
   bucketX = figX - width * 0.045;
   bucketY = surfaceY;
 
-  // Safe cast vector defaults (overwritten by triggerCast before drawing)
   castStart = createVector(rodTip.x, rodTip.y);
   castCtrl  = createVector(rodTip.x, rodTip.y);
   castEnd   = createVector(rodTip.x, rodTip.y);
@@ -54,9 +53,7 @@ function setup() {
 
 // ── Draw ───────────────────────────────────────────────────────────────────
 function draw() {
-  // Sky
   background(18, 12, 8);
-  // Water
   noStroke();
   fill(2, 8, 22);
   rect(0, surfaceY, width, height - surfaceY);
@@ -64,28 +61,29 @@ function draw() {
   drawSurface();
   drawBucket();
   drawFigure();
+  drawBodyWords();
   drawCast();
   drawHeading();
 
-  // Spawn queued fragments when their delay elapses
   for (let i = fragmentQueue.length - 1; i >= 0; i--) {
     if (frameCount >= fragmentQueue[i].delay) {
-      fragments.push(new Fragment(fragmentQueue[i].text, fragmentQueue[i].spawnX));
+      fragments.push(new Fragment(fragmentQueue[i].text, fragmentQueue[i].spawnX, fragmentQueue[i].type));
       fragmentQueue.splice(i, 1);
     }
   }
 
-  // Update + draw fragments; remove recovered ones
   for (let i = fragments.length - 1; i >= 0; i--) {
     fragments[i].update();
     fragments[i].show();
-    if (fragments[i].state === 'recovered') {
+    let s = fragments[i].state;
+    if (s === 'recovered') {
       bucket.push(fragments[i].text);
+      fragments.splice(i, 1);
+    } else if (s === 'done') {
       fragments.splice(i, 1);
     }
   }
 
-  // Cursor: hand when hovering a clickable fragment or the figure
   let hovering = false;
   for (let f of fragments) {
     if (f.isClickable() && dist(mouseX, mouseY, f.x, f.y) < 65) {
@@ -103,7 +101,6 @@ function draw() {
 function mouseClicked() {
   if (mouseButton !== LEFT) return;
 
-  // Click figure/rod to cast manually
   if (castState === 'idle' &&
       mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
       mouseY > rodTip.y - 20 && mouseY < surfaceY) {
@@ -111,7 +108,6 @@ function mouseClicked() {
     return;
   }
 
-  // Click nearest word
   let nearest = null, nearestDist = 65;
   for (let f of fragments) {
     if (!f.isClickable()) continue;
@@ -123,7 +119,7 @@ function mouseClicked() {
 
 // ── Fragment ───────────────────────────────────────────────────────────────
 class Fragment {
-  constructor(text, spawnX) {
+  constructor(text, spawnX, type) {
     this.text          = text;
     this.x             = spawnX + random(-35, 35);
     this.y             = surfaceY;
@@ -139,6 +135,8 @@ class Fragment {
     this.returnStartX  = 0;
     this.returnStartY  = surfaceY;
     this.clickCount    = 0;
+    this.type          = type || 'said';
+    this.slipT         = 0;
   }
 
   isClickable() {
@@ -148,7 +146,6 @@ class Fragment {
   click() {
     this.clickCount++;
     if (this.clickCount >= 5) {
-      // 5 clicks — reel in from wherever the word is
       this.returnStartX = this.x;
       this.returnStartY = this.y;
       this.returnT = 0;
@@ -156,7 +153,7 @@ class Fragment {
       return;
     }
     if (this.state === 'sinking') {
-      this.vy = max(0.05, this.vy - 0.5);  // slow the descent
+      this.vy = max(0.05, this.vy - 0.5);
     } else if (this.state === 'resting') {
       this.lift = min(1.0, this.lift + 0.5);
       this.state = 'rising'; this.vy = 0;
@@ -166,6 +163,8 @@ class Fragment {
   }
 
   update() {
+    if (this.state === 'done') return;
+
     if (this.state === 'sinking') {
       this.vx  *= 0.98;
       this.vy   = min(this.vy + 0.012, 2.5);
@@ -192,12 +191,10 @@ class Fragment {
       this.y   += this.vy;
       this.rotation += this.rotationSpeed;
 
-      // Lift exhausted and falling back — sink to a new resting spot
       if (this.lift < 0.02 && this.vy > 0.5) {
         this.state = 'sinking';
         this.restY = height - random(22, height * 0.07);
       }
-      // Reached surface — begin return journey
       if (this.y <= surfaceY) {
         this.returnStartX = this.x;
         this.returnStartY = surfaceY;
@@ -210,19 +207,54 @@ class Fragment {
     else if (this.state === 'returning') {
       this.returnT += 1 / 55;
       let t  = constrain(this.returnT, 0, 1);
-      // Ease in-out cubic
       let e  = t < 0.5 ? 4*t*t*t : 1 - pow(-2*t + 2, 3) / 2;
       let cx = (this.returnStartX + bucketX) / 2;
-      let cy = surfaceY - height * 0.09;  // always arcs above surface
+      let cy = surfaceY - height * 0.09;
       let mt = 1 - e;
       this.x = mt*mt*this.returnStartX + 2*mt*e*cx + e*e*bucketX;
       this.y = mt*mt*this.returnStartY + 2*mt*e*cy  + e*e*(bucketY - 11);
-      if (this.returnT >= 1) this.state = 'recovered';
+      if (this.returnT >= 1) {
+        if (this.type === 'said') {
+          this.state = 'recovered';
+        } else {
+          this.state = 'slipping';
+          this.slipT = 0;
+          this.x = bucketX;
+          this.y = surfaceY - 3;
+        }
+      }
+    }
+
+    else if (this.state === 'slipping') {
+      this.slipT += 1 / 80;
+      let t  = constrain(this.slipT, 0, 1);
+      let e  = t * t * (3 - 2 * t);
+      this.x = lerp(bucketX, figX, e);
+      this.y = surfaceY - 3;
+      if (this.slipT >= 1) {
+        bodyWords.push({
+          text : this.text,
+          x    : figX + random(-figBodyW * 3, figBodyW * 3),
+          y    : random(torsoTop - headR * 0.8, surfaceY - 6),
+          age  : 0
+        });
+        this.state = 'done';
+      }
     }
   }
 
   show() {
-    if (this.state === 'recovered') return;
+    if (this.state === 'recovered' || this.state === 'done') return;
+
+    if (this.state === 'slipping') {
+      push();
+        translate(this.x, this.y);
+        noStroke();
+        fill(200, 210, 230, 110);
+        text(this.text, 0, 0);
+      pop();
+      return;
+    }
 
     let tDepth = constrain(map(this.y, surfaceY, height, 0, 1), 0, 1);
     let c = lerpColor(warmWhite, deepBlue, tDepth);
@@ -233,7 +265,6 @@ class Fragment {
       let pulse = (sin(frameCount * 0.05 + this.driftPhase) + 1) * 0.5;
       c = lerpColor(c, color(255, 255, 240, 200), pulse * 0.15);
     }
-    // Each click brightens the word slightly — feedback for progress toward 5
     if (this.clickCount > 0 && this.clickCount < 5) {
       c = lerpColor(c, color(255, 255, 245, 240), this.clickCount * 0.12);
     }
@@ -249,8 +280,8 @@ class Fragment {
 }
 
 // ── Corpus helper ──────────────────────────────────────────────────────────
-function pickFragment() {
-  let line     = random(corpus);
+function pickFragment(corpusArr) {
+  let line     = random(corpusArr);
   let words    = line.split(' ');
   let maxStart = max(0, words.length - 2);
   let start    = floor(random(0, maxStart + 1));
@@ -259,7 +290,6 @@ function pickFragment() {
 }
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
-
 function drawSurface() {
   let pulse = sin(frameCount * 0.013) * 0.5 + sin(frameCount * 0.031) * 0.3;
   push();
@@ -283,10 +313,27 @@ function drawFigure() {
   pop();
 }
 
+function drawBodyWords() {
+  push();
+    textSize(13);
+    textStyle(ITALIC);
+    textAlign(CENTER, CENTER);
+    noStroke();
+    for (let w of bodyWords) {
+      w.age++;
+      let a = min(w.age / 60, 1) * 62;
+      fill(210, 190, 140, a);
+      text(w.text, w.x, w.y);
+    }
+    textStyle(NORMAL);
+    textSize(22);
+  pop();
+}
+
 function drawBucket() {
   let bh  = 48, tw = 38, bw = 26;
   let top = bucketY - bh;
-  let fillRatio = min(bucket.length / corpus.length, 1);
+  let fillRatio = min(bucket.length / corpusSaid.length, 1);
 
   push();
     stroke(160, 130, 90, 200);
@@ -344,7 +391,9 @@ function queueCast() {
   let sx    = castEnd.x;
   let count = floor(random(3, 6));
   for (let i = 0; i < count; i++) {
-    fragmentQueue.push({ text: pickFragment(), spawnX: sx, delay: frameCount + i * 25 });
+    let type = random() < 0.5 ? 'said' : 'unsaid';
+    let corp = type === 'said' ? corpusSaid : corpusUnsaid;
+    fragmentQueue.push({ text: pickFragment(corp), spawnX: sx, type: type, delay: frameCount + i * 25 });
   }
 }
 

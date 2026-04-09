@@ -1,30 +1,32 @@
 // corpus.js
-// Text corpus for Ribs / Water Surface
+// Text corpus for Unsay
 // Lines drawn from Start Here (memoir-in-progress) by Niki Patino
-// Two types: said and cannot be unsaid / never said, held in the body
+// Two corpora: said (cannot be unsaid) / unsaid (held in the body)
 
-const corpus = [
-  // Said — and cannot be unsaid
-  "Don't touch me like that.",
-  "I'll be quick.",
-  "Come on, chubby.",
-  "If you leave me, I'll do it.",
-  "It's a stupid piece of wood.",
-  "You know this is over, right?",
-  "I can't do this anymore.",
-  "My heart's not in us.",
-  "I want to be loved right by a man.",
-  "Get back inside that house.",
-  "Don't worry about it.",
-  "We'll be back.",
+const corpusSaid = [
+  "don't touch me like that",
+  "come on, chubby",
+  "if you leave me",
+  "I'll do it",
+  "it's a stupid piece of wood",
+  "you know this is over",
+  "I can't do this anymore",
+  "my heart's not in us",
+  "get back inside",
+  "don't worry about it",
+  "we'll be back",
+  "I'll be quick",
+  "close your eyes",
+  "pretend",
+  "what are you",
+  "I already had the best part",
+];
 
-  // Never said — held in the body
+const corpusUnsaid = [
   "Don't let me come here anymore.",
   "I don't want to get married.",
   "I'm fine.",
   "I'm fine.",
-
-  // Said by others — arrived and stayed
   "It will mean many things.",
   "Close your eyes and pretend.",
   "I already had the best part of you.",
