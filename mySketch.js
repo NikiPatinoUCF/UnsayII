@@ -27,7 +27,7 @@ function setup() {
   surfaceY = height / 2;
 
   textFont('IM Fell English');
-  textSize(15);
+  textSize(22);
   textAlign(CENTER, CENTER);
 
   warmWhite = color(255, 248, 230, 220);
@@ -284,7 +284,7 @@ function drawFigure() {
 }
 
 function drawBucket() {
-  let bh  = 22, tw = 18, bw = 12;
+  let bh  = 48, tw = 38, bw = 26;
   let top = bucketY - bh;
   let fillRatio = min(bucket.length / corpus.length, 1);
 
