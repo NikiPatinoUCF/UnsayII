@@ -602,21 +602,14 @@ function drawBucket() {
 }
 
 function drawHeading() {
+  if (gameComplete) return;
   push();
+    textSize(28);
     textStyle(ITALIC);
+    textAlign(LEFT, TOP);
     noStroke();
-
-    // Title moves from top-left to center and enlarges with sunset
-    let e    = sunsetT * sunsetT * (3 - 2 * sunsetT);  // smoothstep
-    let tx   = lerp(width * 0.05,  width * 0.5,   e);
-    let ty   = lerp(height * 0.05, height * 0.35,  e);
-    let ts   = lerp(28, 62, e);
-    let ta   = lerp(68, 200, e);
-    let talign = e > 0.5 ? CENTER : LEFT;
-    textSize(ts);
-    textAlign(talign, TOP);
-    fill(255, _l(245, 210, sunsetT), _l(220, 130, sunsetT), ta);
-    text('To Say or to Unsay', tx, ty);
+    fill(255, 245, 220, 68);
+    text('To Say or to Unsay', width * 0.05, height * 0.05);
   pop();
 }
 
