@@ -1,6 +1,5 @@
 // UNSAY — interactive game
 // corpus.js loaded first, provides: const corpusSaid, const corpusUnsaid
-
 // ── Globals ────────────────────────────────────────────────────────────────
 let fragments     = [];
 let fragmentQueue = [];
