@@ -4,7 +4,6 @@
 // Two corpora: said (cannot be unsaid) / unsaid (held in the body)
 
 const corpusSaid = [
-  // Said — cannot be unsaid
   "don't touch me like that",
   "come on, chubby",
   "if you leave me",
@@ -24,21 +23,13 @@ const corpusSaid = [
 ];
 
 const corpusUnsaid = [
-  // Never said — held in the body
-  "I was scared",
-  "I needed you to stay",
-  "please don't leave me here",
-  "I didn't want to go",
-  "stay with me",
-  "I'm not fine",
-  "I was so lonely",
-  "help me",
-  "I wanted to leave too",
-  "don't make me go back",
-  "I was hurting",
-  "I loved you still",
-  "I don't want this",
-  "I was only a child",
-  "I couldn't say it",
-  "no one asked me",
+  "Don't let me come here anymore.",
+  "I don't want to get married.",
+  "I'm fine.",
+  "I'm fine.",
+  "It will mean many things.",
+  "Close your eyes and pretend.",
+  "I already had the best part of you.",
+  "What are you?",
+  "He filed for divorce.",
 ];

@@ -1,5 +1,5 @@
 // UNSAY — interactive game
-// corpus.js loaded first, provides: const corpus (array of memoir lines)
+// corpus.js loaded first, provides: const corpusSaid, const corpusUnsaid
 
 // ── Globals ────────────────────────────────────────────────────────────────
 let fragments     = [];
@@ -20,7 +20,7 @@ let castState       = 'idle';
 let castTimer       = 0;
 let castStart, castCtrl, castEnd;
 let castLastTrigger = 0;
-let nextCastIn      = 0;  // first cast fires on frame 0
+let nextCastIn      = 0;
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 function setup() {
@@ -34,7 +34,6 @@ function setup() {
   warmWhite = color(255, 248, 230, 220);
   deepBlue  = color(15, 30, 65, 175);
 
-  // Figure geometry (also used by cast and bucket)
   figX      = width  * 0.12;
   figBodyH  = height * 0.13;
   figBodyW  = width  * 0.018;
@@ -47,7 +46,6 @@ function setup() {
   bucketX = figX - width * 0.045;
   bucketY = surfaceY;
 
-  // Safe cast vector defaults (overwritten by triggerCast before drawing)
   castStart = createVector(rodTip.x, rodTip.y);
   castCtrl  = createVector(rodTip.x, rodTip.y);
   castEnd   = createVector(rodTip.x, rodTip.y);
@@ -55,9 +53,7 @@ function setup() {
 
 // ── Draw ───────────────────────────────────────────────────────────────────
 function draw() {
-  // Sky
   background(18, 12, 8);
-  // Water
   noStroke();
   fill(2, 8, 22);
   rect(0, surfaceY, width, height - surfaceY);
@@ -69,7 +65,6 @@ function draw() {
   drawCast();
   drawHeading();
 
-  // Spawn queued fragments when their delay elapses
   for (let i = fragmentQueue.length - 1; i >= 0; i--) {
     if (frameCount >= fragmentQueue[i].delay) {
       fragments.push(new Fragment(fragmentQueue[i].text, fragmentQueue[i].spawnX, fragmentQueue[i].type));
@@ -77,7 +72,6 @@ function draw() {
     }
   }
 
-  // Update + draw fragments; remove recovered ones
   for (let i = fragments.length - 1; i >= 0; i--) {
     fragments[i].update();
     fragments[i].show();
@@ -90,7 +84,6 @@ function draw() {
     }
   }
 
-  // Cursor: hand when hovering a clickable fragment or the figure
   let hovering = false;
   for (let f of fragments) {
     if (f.isClickable() && dist(mouseX, mouseY, f.x, f.y) < 65) {
@@ -108,7 +101,6 @@ function draw() {
 function mouseClicked() {
   if (mouseButton !== LEFT) return;
 
-  // Click figure/rod to cast manually
   if (castState === 'idle' &&
       mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
       mouseY > rodTip.y - 20 && mouseY < surfaceY) {
@@ -116,7 +108,6 @@ function mouseClicked() {
     return;
   }
 
-  // Click nearest word
   let nearest = null, nearestDist = 65;
   for (let f of fragments) {
     if (!f.isClickable()) continue;
@@ -155,7 +146,6 @@ class Fragment {
   click() {
     this.clickCount++;
     if (this.clickCount >= 5) {
-      // 5 clicks — reel in from wherever the word is
       this.returnStartX = this.x;
       this.returnStartY = this.y;
       this.returnT = 0;
@@ -163,7 +153,7 @@ class Fragment {
       return;
     }
     if (this.state === 'sinking') {
-      this.vy = max(0.05, this.vy - 0.5);  // slow the descent
+      this.vy = max(0.05, this.vy - 0.5);
     } else if (this.state === 'resting') {
       this.lift = min(1.0, this.lift + 0.5);
       this.state = 'rising'; this.vy = 0;
@@ -201,12 +191,10 @@ class Fragment {
       this.y   += this.vy;
       this.rotation += this.rotationSpeed;
 
-      // Lift exhausted and falling back — sink to a new resting spot
       if (this.lift < 0.02 && this.vy > 0.5) {
         this.state = 'sinking';
         this.restY = height - random(22, height * 0.07);
       }
-      // Reached surface — begin return journey
       if (this.y <= surfaceY) {
         this.returnStartX = this.x;
         this.returnStartY = surfaceY;
@@ -219,10 +207,9 @@ class Fragment {
     else if (this.state === 'returning') {
       this.returnT += 1 / 55;
       let t  = constrain(this.returnT, 0, 1);
-      // Ease in-out cubic
       let e  = t < 0.5 ? 4*t*t*t : 1 - pow(-2*t + 2, 3) / 2;
       let cx = (this.returnStartX + bucketX) / 2;
-      let cy = surfaceY - height * 0.09;  // always arcs above surface
+      let cy = surfaceY - height * 0.09;
       let mt = 1 - e;
       this.x = mt*mt*this.returnStartX + 2*mt*e*cx + e*e*bucketX;
       this.y = mt*mt*this.returnStartY + 2*mt*e*cy  + e*e*(bucketY - 11);
@@ -241,7 +228,7 @@ class Fragment {
     else if (this.state === 'slipping') {
       this.slipT += 1 / 80;
       let t  = constrain(this.slipT, 0, 1);
-      let e  = t * t * (3 - 2 * t);  // smoothstep
+      let e  = t * t * (3 - 2 * t);
       this.x = lerp(bucketX, figX, e);
       this.y = surfaceY - 3;
       if (this.slipT >= 1) {
@@ -278,7 +265,6 @@ class Fragment {
       let pulse = (sin(frameCount * 0.05 + this.driftPhase) + 1) * 0.5;
       c = lerpColor(c, color(255, 255, 240, 200), pulse * 0.15);
     }
-    // Each click brightens the word slightly — feedback for progress toward 5
     if (this.clickCount > 0 && this.clickCount < 5) {
       c = lerpColor(c, color(255, 255, 245, 240), this.clickCount * 0.12);
     }
@@ -304,7 +290,6 @@ function pickFragment(corpusArr) {
 }
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
-
 function drawSurface() {
   let pulse = sin(frameCount * 0.013) * 0.5 + sin(frameCount * 0.031) * 0.3;
   push();
@@ -336,7 +321,7 @@ function drawBodyWords() {
     noStroke();
     for (let w of bodyWords) {
       w.age++;
-      let a = min(w.age / 60, 1) * 62;  // fade in over 60 frames, max alpha ~62
+      let a = min(w.age / 60, 1) * 62;
       fill(210, 190, 140, a);
       text(w.text, w.x, w.y);
     }
