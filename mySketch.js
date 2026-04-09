@@ -5,7 +5,6 @@
 let fragments     = [];
 let fragmentQueue = [];
 let bucket        = [];
-let bodyWords     = [];   // absorbed unsaid words: {text, x, y, age}
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -61,7 +60,7 @@ function draw() {
   drawSurface();
   drawBucket();
   drawFigure();
-  drawBodyWords();
+  drawVortex();
   drawCast();
   drawHeading();
 
@@ -136,7 +135,9 @@ class Fragment {
     this.returnStartY  = surfaceY;
     this.clickCount    = 0;
     this.type          = type || 'said';
-    this.slipT         = 0;
+    this.vortexT       = 0;
+    this.vortexStartX  = 0;
+    this.vortexStartY  = 0;
   }
 
   isClickable() {
@@ -217,35 +218,40 @@ class Fragment {
         if (this.type === 'said') {
           this.state = 'recovered';
         } else {
-          this.state = 'slipping';
-          this.slipT = 0;
-          this.x = bucketX;
-          this.y = surfaceY - 3;
+          this.state        = 'vortex';
+          this.vortexT      = 0;
+          this.vortexStartX = this.x;
+          this.vortexStartY = this.y;
         }
       }
     }
 
-    else if (this.state === 'slipping') {
-      this.slipT += 1 / 80;
-      let t  = constrain(this.slipT, 0, 1);
-      let e  = t * t * (3 - 2 * t);
-      this.x = lerp(bucketX, figX, e);
-      this.y = surfaceY - 3;
-      if (this.slipT >= 1) {
-        bodyWords.push({ text: this.text, age: 0 });
-        this.state = 'done';
-      }
+    else if (this.state === 'vortex') {
+      this.vortexT += 1 / 75;
+      let t  = constrain(this.vortexT, 0, 1);
+      let e  = t * t;  // accelerate inward
+      let cx = figX;
+      let cy = torsoTop + figBodyH * 0.5;
+      let dx = this.vortexStartX - cx;
+      let dy = this.vortexStartY - cy;
+      let r  = sqrt(dx * dx + dy * dy) * (1 - e);
+      let a0 = atan2(dy, dx);
+      let θ  = a0 - t * TWO_PI * 1.5;  // 1.5 counterclockwise rotations
+      this.x = cx + r * cos(θ);
+      this.y = cy + r * sin(θ);
+      if (this.vortexT >= 1) this.state = 'done';
     }
   }
 
   show() {
     if (this.state === 'recovered' || this.state === 'done') return;
 
-    if (this.state === 'slipping') {
+    if (this.state === 'vortex') {
+      let t = constrain(this.vortexT, 0, 1);
       push();
         translate(this.x, this.y);
         noStroke();
-        fill(200, 210, 230, 110);
+        fill(200, 210, 230, (1 - t) * 190);
         text(this.text, 0, 0);
       pop();
       return;
@@ -308,26 +314,25 @@ function drawFigure() {
   pop();
 }
 
-function drawBodyWords() {
-  if (bodyWords.length === 0) return;
-  let lineH   = 15;
-  let bodyTop = torsoTop - headR * 1.6;  // extend up through head
+function drawVortex() {
+  let cx = figX;
+  let cy = torsoTop + figBodyH * 0.5;
+  // Only draw when a word is actively spiraling in
+  let active = false;
+  for (let f of fragments) {
+    if (f.state === 'vortex') { active = true; break; }
+  }
+  if (!active) return;
   push();
-    textSize(11);
-    textStyle(ITALIC);
-    textAlign(CENTER, BOTTOM);
-    noStroke();
-    for (let i = 0; i < bodyWords.length; i++) {
-      let wy = surfaceY - 4 - i * lineH;
-      if (wy < bodyTop) break;  // stop when above head
-      let w = bodyWords[i];
-      w.age++;
-      let a = min(w.age / 60, 1) * 72;  // fade in over 60 frames
-      fill(210, 190, 140, a);
-      text(w.text, figX, wy);
+    noFill();
+    let spin = frameCount * 0.18;
+    for (let i = 0; i < 3; i++) {
+      let a0 = spin + i * TWO_PI / 3;
+      let r  = 10;
+      stroke(200, 210, 230, 100);
+      strokeWeight(0.9);
+      arc(cx, cy, r * 2, r * 2, a0, a0 + PI * 0.65);
     }
-    textStyle(NORMAL);
-    textSize(22);
   pop();
 }
 
