@@ -1,34 +1,44 @@
 // corpus.js
-// Text corpus for Ribs / Water Surface
+// Text corpus for Unsay
 // Lines drawn from Start Here (memoir-in-progress) by Niki Patino
-// Two types: said and cannot be unsaid / never said, held in the body
+// Two corpora: said (cannot be unsaid) / unsaid (held in the body)
 
-const corpus = [
-  // Said — and cannot be unsaid
-  "Don't touch me like that.",
-  "I'll be quick.",
-  "Come on, chubby.",
-  "If you leave me, I'll do it.",
-  "It's a stupid piece of wood.",
-  "You know this is over, right?",
-  "I can't do this anymore.",
-  "My heart's not in us.",
-  "I want to be loved right by a man.",
-  "Get back inside that house.",
-  "Don't worry about it.",
-  "We'll be back.",
+const corpusSaid = [
+  // Said — cannot be unsaid
+  "don't touch me like that",
+  "come on, chubby",
+  "if you leave me",
+  "I'll do it",
+  "it's a stupid piece of wood",
+  "you know this is over",
+  "I can't do this anymore",
+  "my heart's not in us",
+  "get back inside",
+  "don't worry about it",
+  "we'll be back",
+  "I'll be quick",
+  "close your eyes",
+  "pretend",
+  "what are you",
+  "I already had the best part",
+];
 
+const corpusUnsaid = [
   // Never said — held in the body
-  "Don't let me come here anymore.",
-  "I was sexually abused.",
-  "I don't want to get married.",
-  "I'm fine.",
-  "I'm fine.",
-
-  // Said by others — arrived and stayed
-  "It will mean many things.",
-  "Close your eyes and pretend.",
-  "I already had the best part of you.",
-  "Are you a lesbian?",
-  "He filed for divorce.",
+  "I was scared",
+  "I needed you to stay",
+  "please don't leave me here",
+  "I didn't want to go",
+  "stay with me",
+  "I'm not fine",
+  "I was so lonely",
+  "help me",
+  "I wanted to leave too",
+  "don't make me go back",
+  "I was hurting",
+  "I loved you still",
+  "I don't want this",
+  "I was only a child",
+  "I couldn't say it",
+  "no one asked me",
 ];
