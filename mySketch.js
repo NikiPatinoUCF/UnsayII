@@ -449,7 +449,7 @@ function drawHeading() {
     textAlign(LEFT, TOP);
     noStroke();
     fill(255, 245, 220, 68);
-    text('You can try to unsay it, but\u2026', width * 0.05, height * 0.05);
+    text('To Say or to Unsay', width * 0.05, height * 0.05);
   pop();
 }
 
