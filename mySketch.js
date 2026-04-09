@@ -11,6 +11,10 @@ let heldCount     = 0;
 let carriedSmooth = 1.0;
 let heldSmooth    = 0.0;
 
+// Ending
+let gameComplete  = false;
+let sunsetT       = 0;
+
 let surfaceY;
 let warmWhite, deepBlue;
 
@@ -57,9 +61,29 @@ function setup() {
 
 // ── Draw ───────────────────────────────────────────────────────────────────
 function draw() {
-  background(18, 12, 8);
+  // Completion check
+  if (!gameComplete && bucket.length >= corpusSaid.length && heldCount >= corpusUnsaid.length) {
+    gameComplete = true;
+  }
+  if (gameComplete) sunsetT = min(1, sunsetT + 1 / 360);
+
+  // Sky
+  if (sunsetT < 0.002) {
+    background(18, 12, 8);
+  } else {
+    let s = sunsetT;
+    let grad = drawingContext.createLinearGradient(0, 0, 0, surfaceY);
+    grad.addColorStop(0,    `rgb(${_l(18,28,s)},${_l(12,5,s)},${_l(8,52,s)})`);
+    grad.addColorStop(0.45, `rgb(${_l(18,160,s)},${_l(12,38,s)},${_l(8,18,s)})`);
+    grad.addColorStop(0.8,  `rgb(${_l(18,220,s)},${_l(12,95,s)},${_l(8,22,s)})`);
+    grad.addColorStop(1,    `rgb(${_l(18,245,s)},${_l(12,145,s)},${_l(8,40,s)})`);
+    drawingContext.fillStyle = grad;
+    drawingContext.fillRect(0, 0, width, surfaceY);
+  }
+
+  // Water — deepens toward purple-rose at sunset
   noStroke();
-  fill(2, 8, 22);
+  fill(_l(2,18,sunsetT), _l(8,10,sunsetT), _l(22,32,sunsetT));
   rect(0, surfaceY, width, height - surfaceY);
 
   drawSurface();
@@ -391,6 +415,9 @@ function updateFish() {
   for (let f of fish) { f.update(); f.show(); }
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+function _l(a, b, t) { return floor(lerp(a, b, t)); }  // integer lerp for CSS rgb()
+
 // ── Corpus helper ──────────────────────────────────────────────────────────
 function pickFragment(corpusArr) {
   let line     = random(corpusArr);
@@ -403,10 +430,24 @@ function pickFragment(corpusArr) {
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
 function drawSurface() {
+  // Horizon glow builds with sunset
+  if (sunsetT > 0.01) {
+    let hg = drawingContext.createLinearGradient(0, surfaceY - 55, 0, surfaceY + 55);
+    let a  = sunsetT * 0.75;
+    hg.addColorStop(0,   `rgba(255,165,40,0)`);
+    hg.addColorStop(0.5, `rgba(255,155,35,${a})`);
+    hg.addColorStop(1,   `rgba(220,90,15,0)`);
+    drawingContext.fillStyle = hg;
+    drawingContext.fillRect(0, surfaceY - 55, width, 110);
+  }
+
   let pulse = sin(frameCount * 0.013) * 0.5 + sin(frameCount * 0.031) * 0.3;
+  let lineAlpha = sunsetT > 0.01
+    ? map(sunsetT, 0, 1, map(pulse, -0.8, 0.8, 140, 210), 255)
+    : map(pulse, -0.8, 0.8, 140, 210);
   push();
-    stroke(255, 248, 230, map(pulse, -0.8, 0.8, 140, 210));
-    strokeWeight(0.7 + abs(sin(frameCount * 0.02)) * 0.4);
+    stroke(255, _l(248, 200, sunsetT), _l(230, 100, sunsetT), lineAlpha);
+    strokeWeight(0.7 + abs(sin(frameCount * 0.02)) * 0.4 + sunsetT * 1.2);
     line(0, surfaceY, width, surfaceY);
   pop();
 }
@@ -426,6 +467,13 @@ function drawFigure() {
     ellipse(figX, aTorsoTop + aBodyH * 0.5, figBodyW * 11, aBodyH * 1.3);
   }
 
+  // Pole folds away with sunset — arm and rod lerp back to body
+  let poleT      = sunsetT;
+  let dArmTipX   = lerp(armTipX,   figX + figBodyW * 0.5, poleT);
+  let dArmTipY   = lerp(aArmTipY,  aTorsoTop + aBodyH * 0.45, poleT);
+  let dRodTipX   = lerp(rodTip.x,  figX + figBodyW * 0.5, poleT);
+  let dRodTipY   = lerp(aRodTipY,  aTorsoTop + aBodyH * 0.45, poleT);
+
   let sil = color(40, 35, 30, 210);
   push();
     fill(sil); noStroke();
@@ -433,9 +481,9 @@ function drawFigure() {
     rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
     stroke(sil);
     strokeWeight(max(1.5, figBodyW * 0.6)); noFill();
-    line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, armTipX, aArmTipY);
+    line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, dArmTipX, dArmTipY);
     strokeWeight(max(1, figBodyW * 0.3));
-    line(armTipX, aArmTipY, rodTip.x, aRodTipY);
+    line(dArmTipX, dArmTipY, dRodTipX, dRodTipY);
   pop();
 }
 
@@ -500,8 +548,22 @@ function drawHeading() {
     textStyle(ITALIC);
     textAlign(LEFT, TOP);
     noStroke();
-    fill(255, 245, 220, 68);
-    text('To Say or to Unsay', width * 0.05, height * 0.05);
+    if (sunsetT < 0.01) {
+      fill(255, 245, 220, 68);
+      text('To Say or to Unsay', width * 0.05, height * 0.05);
+    } else {
+      // Opening line fades out, ending line fades in
+      let fadeOut = max(0, 1 - sunsetT * 4);
+      let fadeIn  = max(0, sunsetT * 2 - 1);
+      fill(255, 245, 220, 68 * fadeOut);
+      text('To Say or to Unsay', width * 0.05, height * 0.05);
+      if (fadeIn > 0) {
+        textAlign(CENTER, CENTER);
+        fill(255, _l(245, 200, sunsetT), _l(220, 120, sunsetT), fadeIn * 160);
+        textSize(_l(28, 36, sunsetT));
+        text('you were always enough', width * 0.5, height * 0.32);
+      }
+    }
   pop();
 }
 
@@ -582,6 +644,7 @@ function queueCast() {
 }
 
 function drawCast() {
+  if (gameComplete) { castState = 'idle'; return; }
   if (castState === 'idle' && frameCount >= castLastTrigger + nextCastIn) {
     triggerCast();
   }
