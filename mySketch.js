@@ -519,12 +519,6 @@ function drawFigure() {
   let aArmTipY  = armTipY   - lift * height  * 0.02;
   let aRodTipY  = rodTip.y  - lift * height  * 0.02;
 
-  // Held glow behind silhouette
-  if (heldSmooth > 0.01) {
-    noStroke();
-    fill(190, 130, 55, heldSmooth * 40);
-    ellipse(figX, aTorsoTop + aBodyH * 0.5, figBodyW * 11, aBodyH * 1.3);
-  }
 
   // Pole folds away in the first 40% of the sunset
   let poleT      = min(sunsetT * 2.5, 1);
