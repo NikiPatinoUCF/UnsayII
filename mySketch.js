@@ -5,6 +5,7 @@
 let fragments     = [];
 let fragmentQueue = [];
 let bucket        = [];
+let fish          = [];
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -58,6 +59,7 @@ function draw() {
   rect(0, surfaceY, width, height - surfaceY);
 
   drawSurface();
+  updateFish();
   drawBucket();
   drawFigure();
   drawVortex();
@@ -80,6 +82,17 @@ function draw() {
       fragments.splice(i, 1);
     } else if (s === 'done') {
       fragments.splice(i, 1);
+    }
+  }
+
+  // Fish eating: nearby resting words with no clicks fade out
+  for (let f of fragments) {
+    if (f.state !== 'resting' || f.clickCount !== 0) continue;
+    for (let fi of fish) {
+      let wy = fi.y + sin(fi.wob) * 2;
+      if (dist(fi.x, wy, f.x, f.y) < fi.bw * 0.75) {
+        f.eatAlpha = max(0, f.eatAlpha - 0.007);
+      }
     }
   }
 
@@ -138,6 +151,7 @@ class Fragment {
     this.vortexT       = 0;
     this.vortexStartX  = 0;
     this.vortexStartY  = 0;
+    this.eatAlpha      = 1.0;
   }
 
   isClickable() {
@@ -165,6 +179,7 @@ class Fragment {
 
   update() {
     if (this.state === 'done') return;
+    if (this.eatAlpha <= 0) { this.state = 'done'; return; }
 
     if (this.state === 'sinking') {
       this.vx  *= 0.98;
@@ -274,10 +289,63 @@ class Fragment {
       translate(this.x, this.y);
       rotate(this.rotation);
       noStroke();
-      fill(c);
+      fill(red(c), green(c), blue(c), alpha(c) * this.eatAlpha);
       text(this.text, 0, 0);
     pop();
   }
+}
+
+// ── Fish ───────────────────────────────────────────────────────────────────
+class Fish {
+  constructor() {
+    this.dir   = random() < 0.5 ? 1 : -1;
+    this.x     = this.dir === 1 ? -70 : width + 70;
+    this.y     = random(surfaceY + height * 0.06, height - 35);
+    this.speed = random(0.35, 0.8);
+    this.bw    = random(32, 58);
+    this.bh    = this.bw * 0.36;
+    this.wob   = random(TWO_PI);
+  }
+
+  update() {
+    this.x   += this.speed * this.dir;
+    this.wob += 0.035;
+  }
+
+  isOffScreen() {
+    return (this.dir === 1  && this.x > width  + 80) ||
+           (this.dir === -1 && this.x < -80);
+  }
+
+  show() {
+    let wy = this.y + sin(this.wob) * 2;
+    push();
+      translate(this.x, wy);
+      if (this.dir === -1) scale(-1, 1);
+      fill(130, 90, 28, 175);
+      noStroke();
+      // Tail
+      triangle(
+        -this.bw * 0.38,  0,
+        -this.bw * 0.72, -this.bh * 0.52,
+        -this.bw * 0.72,  this.bh * 0.52
+      );
+      // Body
+      ellipse(this.bw * 0.04, 0, this.bw * 0.76, this.bh);
+    pop();
+  }
+}
+
+function updateFish() {
+  // Remove fish that have crossed the screen
+  for (let i = fish.length - 1; i >= 0; i--) {
+    if (fish[i].isOffScreen()) fish.splice(i, 1);
+  }
+  // Maintain 2 fish; occasionally allow a 3rd
+  if (fish.length < 2 || (fish.length < 3 && random() < 0.002)) {
+    fish.push(new Fish());
+  }
+  for (let f of fish) { f.update(); f.show(); }
 }
 
 // ── Corpus helper ──────────────────────────────────────────────────────────
