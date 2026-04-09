@@ -65,26 +65,38 @@ function draw() {
   if (!gameComplete && bucket.length >= corpusSaid.length && heldCount >= corpusUnsaid.length) {
     gameComplete = true;
   }
-  if (gameComplete) sunsetT = min(1, sunsetT + 1 / 360);
+  if (gameComplete) sunsetT = min(1, sunsetT + 1 / 600);  // ~10 seconds
 
-  // Sky
+  // ── Sky ────────────────────────────────────────────────────────────────────
   if (sunsetT < 0.002) {
     background(18, 12, 8);
   } else {
     let s = sunsetT;
     let grad = drawingContext.createLinearGradient(0, 0, 0, surfaceY);
-    grad.addColorStop(0,    `rgb(${_l(18,28,s)},${_l(12,5,s)},${_l(8,52,s)})`);
-    grad.addColorStop(0.45, `rgb(${_l(18,160,s)},${_l(12,38,s)},${_l(8,18,s)})`);
-    grad.addColorStop(0.8,  `rgb(${_l(18,220,s)},${_l(12,95,s)},${_l(8,22,s)})`);
-    grad.addColorStop(1,    `rgb(${_l(18,245,s)},${_l(12,145,s)},${_l(8,40,s)})`);
+    grad.addColorStop(0,    `rgb(${_l(18,22,s)},${_l(12,6,s)},${_l(8,42,s)})`);
+    grad.addColorStop(0.35, `rgb(${_l(18,110,s)},${_l(12,28,s)},${_l(8,20,s)})`);
+    grad.addColorStop(0.65, `rgb(${_l(18,200,s)},${_l(12,72,s)},${_l(8,18,s)})`);
+    grad.addColorStop(0.85, `rgb(${_l(18,232,s)},${_l(12,118,s)},${_l(8,28,s)})`);
+    grad.addColorStop(1,    `rgb(${_l(18,248,s)},${_l(12,162,s)},${_l(8,52,s)})`);
     drawingContext.fillStyle = grad;
+    drawingContext.fillRect(0, 0, width, surfaceY);
+
+    // Sun orb glow in sky
+    let scx = width * 0.55;
+    let scy = surfaceY - height * 0.07;
+    let sg  = drawingContext.createRadialGradient(scx, scy, 0, scx, scy, height * 0.18 * s);
+    sg.addColorStop(0,   `rgba(255,215,110,${s * 0.55})`);
+    sg.addColorStop(0.4, `rgba(245,140,42,${s * 0.28})`);
+    sg.addColorStop(1,   `rgba(200,65,18,0)`);
+    drawingContext.fillStyle = sg;
     drawingContext.fillRect(0, 0, width, surfaceY);
   }
 
-  // Water — deepens toward purple-rose at sunset
+  // ── Water ──────────────────────────────────────────────────────────────────
   noStroke();
-  fill(_l(2,18,sunsetT), _l(8,10,sunsetT), _l(22,32,sunsetT));
+  fill(_l(2,16,sunsetT), _l(8,8,sunsetT), _l(22,22,sunsetT));
   rect(0, surfaceY, width, height - surfaceY);
+  drawSunReflection();
 
   drawSurface();
   updateFish();
@@ -334,6 +346,16 @@ class Fish {
   }
 
   update() {
+    // During ending, fish drift peacefully — no hunting
+    if (gameComplete) {
+      this.target = null;
+      this.vx = lerp(this.vx, this.speed * this.dir * 0.4, 0.02);
+      this.vy = lerp(this.vy, 0, 0.04);
+      if (abs(this.vx) > 0.1) this.dir = this.vx > 0 ? 1 : -1;
+      this.x += this.vx; this.y += this.vy; this.wob += 0.025;
+      return;
+    }
+
     // Drop target if it's no longer eligible
     if (this.target) {
       let f = this.target;
@@ -429,25 +451,62 @@ function pickFragment(corpusArr) {
 }
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
+function drawSunReflection() {
+  if (sunsetT < 0.04) return;
+  let s  = min(sunsetT * 1.4, 1);
+  let cx = width * 0.55;
+
+  push();
+    for (let y = surfaceY + 1; y < height; y += 2) {
+      let depth  = (y - surfaceY) / (height - surfaceY);
+      let bright = s * pow(1 - depth, 0.55);
+      if (bright < 0.018) continue;
+
+      // Two overlapping waves create organic shimmer
+      let wA   = sin(y * 0.068 + frameCount * 0.007) * 0.5 + 0.5;
+      let wB   = sin(y * 0.21  + frameCount * 0.011) * 0.35 + 0.65;
+      let maxW = width * 0.26 * s * (1 - depth * 0.55);
+      let lw   = maxW * wA * wB;
+
+      let cw = lw * 0.14;  // bright core
+      let gw = lw * 0.52;  // gold band
+      // Core — warm cream/white
+      stroke(255, 246, 218, 230 * bright);
+      strokeWeight(1.8);
+      line(cx - cw, y, cx + cw, y);
+      // Gold band
+      stroke(242, 162, 42, 150 * bright * wA);
+      strokeWeight(1.2);
+      line(cx - gw, y, cx - cw, y);
+      line(cx + cw, y, cx + gw, y);
+      // Amber/rose outer
+      stroke(215, 80, 28, 75 * bright * wB);
+      strokeWeight(1);
+      line(cx - lw, y, cx - gw, y);
+      line(cx + gw, y, cx + lw, y);
+    }
+  pop();
+}
+
 function drawSurface() {
-  // Horizon glow builds with sunset
+  // Horizon glow — full-width band that blooms with sunset
   if (sunsetT > 0.01) {
-    let hg = drawingContext.createLinearGradient(0, surfaceY - 55, 0, surfaceY + 55);
-    let a  = sunsetT * 0.75;
-    hg.addColorStop(0,   `rgba(255,165,40,0)`);
-    hg.addColorStop(0.5, `rgba(255,155,35,${a})`);
-    hg.addColorStop(1,   `rgba(220,90,15,0)`);
+    let spread = 70 + sunsetT * 60;
+    let hg = drawingContext.createLinearGradient(0, surfaceY - spread, 0, surfaceY + spread);
+    let a  = sunsetT * 0.85;
+    hg.addColorStop(0,   `rgba(255,168,42,0)`);
+    hg.addColorStop(0.5, `rgba(255,158,38,${a})`);
+    hg.addColorStop(1,   `rgba(218,82,15,0)`);
     drawingContext.fillStyle = hg;
-    drawingContext.fillRect(0, surfaceY - 55, width, 110);
+    drawingContext.fillRect(0, surfaceY - spread, width, spread * 2);
   }
 
   let pulse = sin(frameCount * 0.013) * 0.5 + sin(frameCount * 0.031) * 0.3;
-  let lineAlpha = sunsetT > 0.01
-    ? map(sunsetT, 0, 1, map(pulse, -0.8, 0.8, 140, 210), 255)
-    : map(pulse, -0.8, 0.8, 140, 210);
+  let baseA = map(pulse, -0.8, 0.8, 140, 210);
   push();
-    stroke(255, _l(248, 200, sunsetT), _l(230, 100, sunsetT), lineAlpha);
-    strokeWeight(0.7 + abs(sin(frameCount * 0.02)) * 0.4 + sunsetT * 1.2);
+    stroke(255, _l(248, 195, sunsetT), _l(230, 95, sunsetT),
+           lerp(baseA, 255, sunsetT));
+    strokeWeight(0.7 + abs(sin(frameCount * 0.02)) * 0.4 + sunsetT * 1.5);
     line(0, surfaceY, width, surfaceY);
   pop();
 }
@@ -467,8 +526,8 @@ function drawFigure() {
     ellipse(figX, aTorsoTop + aBodyH * 0.5, figBodyW * 11, aBodyH * 1.3);
   }
 
-  // Pole folds away with sunset — arm and rod lerp back to body
-  let poleT      = sunsetT;
+  // Pole folds away in the first 40% of the sunset
+  let poleT      = min(sunsetT * 2.5, 1);
   let dArmTipX   = lerp(armTipX,   figX + figBodyW * 0.5, poleT);
   let dArmTipY   = lerp(aArmTipY,  aTorsoTop + aBodyH * 0.45, poleT);
   let dRodTipX   = lerp(rodTip.x,  figX + figBodyW * 0.5, poleT);
@@ -544,25 +603,26 @@ function drawBucket() {
 
 function drawHeading() {
   push();
-    textSize(28);
     textStyle(ITALIC);
-    textAlign(LEFT, TOP);
     noStroke();
-    if (sunsetT < 0.01) {
-      fill(255, 245, 220, 68);
-      text('To Say or to Unsay', width * 0.05, height * 0.05);
-    } else {
-      // Opening line fades out, ending line fades in
-      let fadeOut = max(0, 1 - sunsetT * 4);
-      let fadeIn  = max(0, sunsetT * 2 - 1);
+
+    // Opening subtitle — fades out as sunset begins
+    let fadeOut = constrain(map(sunsetT, 0, 0.25, 1, 0), 0, 1);
+    if (fadeOut > 0) {
+      textSize(28);
+      textAlign(LEFT, TOP);
       fill(255, 245, 220, 68 * fadeOut);
       text('To Say or to Unsay', width * 0.05, height * 0.05);
-      if (fadeIn > 0) {
-        textAlign(CENTER, CENTER);
-        fill(255, _l(245, 200, sunsetT), _l(220, 120, sunsetT), fadeIn * 160);
-        textSize(_l(28, 36, sunsetT));
-        text('you were always enough', width * 0.5, height * 0.32);
-      }
+    }
+
+    // Ending line — fades in slowly after sunsetT = 0.5, over ~5 seconds
+    let fadeIn = constrain(map(sunsetT, 0.5, 1.0, 0, 1), 0, 1);
+    if (fadeIn > 0) {
+      let eased = fadeIn * fadeIn * (3 - 2 * fadeIn);  // smoothstep
+      textSize(30);
+      textAlign(CENTER, CENTER);
+      fill(255, _l(240, 192, sunsetT), _l(210, 110, sunsetT), eased * 148);
+      text('what you carried, you carried alone', width * 0.5, height * 0.28);
     }
   pop();
 }
