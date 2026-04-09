@@ -32,7 +32,7 @@ function setup() {
   surfaceY = height / 2;
 
   textFont('IM Fell English');
-  textSize(22);
+  textSize(30);
   textAlign(CENTER, CENTER);
 
   warmWhite = color(255, 248, 230, 220);
@@ -464,7 +464,7 @@ function drawBucket() {
 
 function drawHeading() {
   push();
-    textSize(16);
+    textSize(21);
     textStyle(ITALIC);
     textAlign(LEFT, TOP);
     noStroke();
@@ -498,7 +498,7 @@ function drawMeters() {
       rect(lx, by, bw, bh * carriedSmooth);
     }
     // Label
-    textSize(10);
+    textSize(13);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
     fill(200, 165, 85, 80);
@@ -518,7 +518,7 @@ function drawMeters() {
       rect(rx, by + bh - fh, bw, fh);
     }
     // Label
-    textSize(10);
+    textSize(13);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
     fill(130, 155, 190, 80);
