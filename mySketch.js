@@ -31,7 +31,7 @@ function setup() {
   textAlign(CENTER, CENTER);
 
   warmWhite = color(255, 248, 230, 220);
-  deepBlue  = color(2, 10, 30, 0);
+  deepBlue  = color(15, 30, 65, 175);
 
   // Figure geometry (also used by cast and bucket)
   figX      = width  * 0.12;
@@ -61,7 +61,6 @@ function draw() {
   fill(2, 8, 22);
   rect(0, surfaceY, width, height - surfaceY);
 
-  drawSpine();
   drawSurface();
   drawBucket();
   drawFigure();
@@ -98,7 +97,8 @@ function draw() {
 
 // ── Input ──────────────────────────────────────────────────────────────────
 function mouseClicked() {
-  let nearest = null, nearestDist = 55;
+  if (mouseButton !== LEFT) return;
+  let nearest = null, nearestDist = 65;
   for (let f of fragments) {
     if (!f.isClickable()) continue;
     let d = dist(mouseX, mouseY, f.x, f.y);
@@ -221,22 +221,6 @@ function pickFragment() {
 }
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
-function drawSpine() {
-  let segH   = height * 0.02;
-  let totalH = (height - surfaceY) * 0.9;
-  push();
-    strokeWeight(2.5);
-    noFill();
-    for (let i = 0; i < 40; i++) {
-      let frac  = i / 39;
-      let alpha = map(frac, 0, 1, 26, 0) * (1 + 0.3 * sin(frameCount * 0.03 + i * 0.4));
-      let sy    = surfaceY + frac * totalH;
-      let sx    = width / 2 + sin(frameCount * 0.02 + i * 0.3) * 4;
-      stroke(255, 240, 180, alpha);
-      line(sx, sy, sx, sy + segH);
-    }
-  pop();
-}
 
 function drawSurface() {
   let pulse = sin(frameCount * 0.013) * 0.5 + sin(frameCount * 0.031) * 0.3;
