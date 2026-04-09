@@ -6,6 +6,11 @@ let fragmentQueue = [];
 let bucket        = [];
 let fish          = [];
 
+// Meter state
+let heldCount     = 0;
+let carriedSmooth = 1.0;
+let heldSmooth    = 0.0;
+
 let surfaceY;
 let warmWhite, deepBlue;
 
@@ -61,6 +66,7 @@ function draw() {
   updateFish();
   drawBucket();
   drawFigure();
+  drawMeters();
   drawVortex();
   drawCast();
   drawHeading();
@@ -80,6 +86,7 @@ function draw() {
       bucket.push(fragments[i].text);
       fragments.splice(i, 1);
     } else if (s === 'done') {
+      if (fragments[i].type === 'unsaid' && fragments[i].vortexT >= 1) heldCount++;
       fragments.splice(i, 1);
     }
   }
@@ -373,16 +380,30 @@ function drawSurface() {
 }
 
 function drawFigure() {
+  // Posture shifts as burden lifts (carried depletes) and interior fills (held grows)
+  let lift      = 1 - carriedSmooth;
+  let aTorsoTop = torsoTop  - lift * figBodyH * 0.12;
+  let aBodyH    = figBodyH  + lift * figBodyH * 0.12;
+  let aArmTipY  = armTipY   - lift * height  * 0.02;
+  let aRodTipY  = rodTip.y  - lift * height  * 0.02;
+
+  // Held glow behind silhouette
+  if (heldSmooth > 0.01) {
+    noStroke();
+    fill(190, 130, 55, heldSmooth * 40);
+    ellipse(figX, aTorsoTop + aBodyH * 0.5, figBodyW * 11, aBodyH * 1.3);
+  }
+
   let sil = color(40, 35, 30, 210);
   push();
     fill(sil); noStroke();
-    ellipse(figX, torsoTop - headR, headR * 2, headR * 2);
-    rect(figX - figBodyW * 0.5, torsoTop, figBodyW, figBodyH);
+    ellipse(figX, aTorsoTop - headR, headR * 2, headR * 2);
+    rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
     stroke(sil);
     strokeWeight(max(1.5, figBodyW * 0.6)); noFill();
-    line(figX + figBodyW * 0.5, torsoTop + figBodyH * 0.1, armTipX, armTipY);
+    line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, armTipX, aArmTipY);
     strokeWeight(max(1, figBodyW * 0.3));
-    line(armTipX, armTipY, rodTip.x, rodTip.y);
+    line(armTipX, aArmTipY, rodTip.x, aRodTipY);
   pop();
 }
 
@@ -449,6 +470,59 @@ function drawHeading() {
     noStroke();
     fill(255, 245, 220, 68);
     text('To Say or to Unsay', width * 0.05, height * 0.05);
+  pop();
+}
+
+function drawMeters() {
+  let carriedTarget = 1 - constrain(bucket.length / corpusSaid.length, 0, 1);
+  let heldTarget    = constrain(heldCount / corpusUnsaid.length, 0, 1);
+  carriedSmooth = lerp(carriedSmooth, carriedTarget, 0.04);
+  heldSmooth    = lerp(heldSmooth,    heldTarget,    0.04);
+
+  let bw  = 6;
+  let bh  = figBodyH;
+  let by  = torsoTop;
+  let gap = 12;
+  let lx  = figX - figBodyW * 0.5 - gap - bw;
+  let rx  = figX + figBodyW * 0.5 + gap;
+
+  // ── Left: Carried (amber, depletes top-down) ──────────────────────────────
+  push();
+    noStroke();
+    // Track
+    fill(60, 45, 20, 45);
+    rect(lx, by, bw, bh);
+    // Fill
+    if (carriedSmooth > 0.001) {
+      fill(200, 145, 55, 175);
+      rect(lx, by, bw, bh * carriedSmooth);
+    }
+    // Label
+    textSize(10);
+    textStyle(ITALIC);
+    textAlign(CENTER, TOP);
+    fill(200, 165, 85, 80);
+    text('carried', lx + bw * 0.5, surfaceY + 7);
+  pop();
+
+  // ── Right: Held (blue-gray, fills bottom-up) ──────────────────────────────
+  push();
+    noStroke();
+    // Track
+    fill(25, 35, 55, 45);
+    rect(rx, by, bw, bh);
+    // Fill
+    if (heldSmooth > 0.001) {
+      let fh = bh * heldSmooth;
+      fill(130, 155, 190, 175);
+      rect(rx, by + bh - fh, bw, fh);
+    }
+    // Label
+    textSize(10);
+    textStyle(ITALIC);
+    textAlign(CENTER, TOP);
+    fill(130, 155, 190, 80);
+    text('held', rx + bw * 0.5, surfaceY + 7);
   pop();
 }
 
