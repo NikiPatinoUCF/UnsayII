@@ -606,24 +606,17 @@ function drawHeading() {
     textStyle(ITALIC);
     noStroke();
 
-    // Opening subtitle — fades out as sunset begins
-    let fadeOut = constrain(map(sunsetT, 0, 0.25, 1, 0), 0, 1);
-    if (fadeOut > 0) {
-      textSize(28);
-      textAlign(LEFT, TOP);
-      fill(255, 245, 220, 68 * fadeOut);
-      text('To Say or to Unsay', width * 0.05, height * 0.05);
-    }
-
-    // Ending line — fades in slowly after sunsetT = 0.5, over ~5 seconds
-    let fadeIn = constrain(map(sunsetT, 0.5, 1.0, 0, 1), 0, 1);
-    if (fadeIn > 0) {
-      let eased = fadeIn * fadeIn * (3 - 2 * fadeIn);  // smoothstep
-      textSize(30);
-      textAlign(CENTER, CENTER);
-      fill(255, _l(240, 192, sunsetT), _l(210, 110, sunsetT), eased * 148);
-      text('what you carried, you carried alone', width * 0.5, height * 0.28);
-    }
+    // Title moves from top-left to center and enlarges with sunset
+    let e    = sunsetT * sunsetT * (3 - 2 * sunsetT);  // smoothstep
+    let tx   = lerp(width * 0.05,  width * 0.5,   e);
+    let ty   = lerp(height * 0.05, height * 0.35,  e);
+    let ts   = lerp(28, 62, e);
+    let ta   = lerp(68, 200, e);
+    let talign = e > 0.5 ? CENTER : LEFT;
+    textSize(ts);
+    textAlign(talign, TOP);
+    fill(255, _l(245, 210, sunsetT), _l(220, 130, sunsetT), ta);
+    text('To Say or to Unsay', tx, ty);
   pop();
 }
 
