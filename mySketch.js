@@ -91,18 +91,6 @@ function draw() {
     }
   }
 
-  // Fish eating: a single pass marks the word; it then fades out on its own
-  for (let f of fragments) {
-    if (f.beingEaten || f.state !== 'resting' || f.clickCount !== 0) continue;
-    for (let fi of fish) {
-      let wy = fi.y + sin(fi.wob) * 2;
-      if (dist(fi.x, wy, f.x, f.y) < fi.bw * 0.8) {
-        f.beingEaten = true;
-        break;
-      }
-    }
-  }
-
   let hovering = false;
   for (let f of fragments) {
     if (f.isClickable() && dist(mouseX, mouseY, f.x, f.y) < 65) {
@@ -309,23 +297,67 @@ class Fragment {
 // ── Fish ───────────────────────────────────────────────────────────────────
 class Fish {
   constructor() {
-    this.dir   = random() < 0.5 ? 1 : -1;
-    this.x     = this.dir === 1 ? -70 : width + 70;
-    this.y     = random(surfaceY + height * 0.06, height - 35);
-    this.speed = random(0.35, 0.8);
-    this.bw    = random(32, 58);
-    this.bh    = this.bw * 0.36;
-    this.wob   = random(TWO_PI);
+    this.dir    = random() < 0.5 ? 1 : -1;
+    this.x      = this.dir === 1 ? -70 : width + 70;
+    this.y      = random(surfaceY + height * 0.06, height - 35);
+    this.speed  = random(0.6, 1.2);
+    this.bw     = random(32, 58);
+    this.bh     = this.bw * 0.36;
+    this.wob    = random(TWO_PI);
+    this.vx     = this.speed * this.dir;
+    this.vy     = 0;
+    this.target = null;
   }
 
   update() {
-    this.x   += this.speed * this.dir;
+    // Drop target if it's no longer eligible
+    if (this.target) {
+      let f = this.target;
+      if (f.state !== 'resting' || f.clickCount !== 0 || f.beingEaten) {
+        this.target = null;
+      }
+    }
+
+    // Seek the nearest eligible resting word
+    if (!this.target) {
+      let best = null, bestD = Infinity;
+      for (let f of fragments) {
+        if (f.state !== 'resting' || f.clickCount !== 0 || f.beingEaten) continue;
+        let d = dist(this.x, this.y, f.x, f.y);
+        if (d < bestD) { bestD = d; best = f; }
+      }
+      this.target = best;
+    }
+
+    if (this.target) {
+      let dx = this.target.x - this.x;
+      let dy = this.target.y - this.y;
+      let d  = sqrt(dx * dx + dy * dy);
+      if (d > 1) {
+        this.vx = lerp(this.vx, (dx / d) * this.speed * 1.4, 0.05);
+        this.vy = lerp(this.vy, (dy / d) * this.speed * 1.4, 0.05);
+      }
+      // Close enough — eat it
+      if (d < this.bw * 0.6) {
+        this.target.beingEaten = true;
+        this.target = null;
+      }
+    } else {
+      // No words to hunt — drift horizontally
+      this.vx = lerp(this.vx, this.speed * this.dir, 0.03);
+      this.vy = lerp(this.vy, 0, 0.05);
+    }
+
+    // Face the direction of travel
+    if (abs(this.vx) > 0.1) this.dir = this.vx > 0 ? 1 : -1;
+
+    this.x   += this.vx;
+    this.y   += this.vy;
     this.wob += 0.035;
   }
 
   isOffScreen() {
-    return (this.dir === 1  && this.x > width  + 80) ||
-           (this.dir === -1 && this.x < -80);
+    return this.x > width + 120 || this.x < -120;
   }
 
   show() {
