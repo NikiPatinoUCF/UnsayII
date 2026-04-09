@@ -232,12 +232,7 @@ class Fragment {
       this.x = lerp(bucketX, figX, e);
       this.y = surfaceY - 3;
       if (this.slipT >= 1) {
-        bodyWords.push({
-          text : this.text,
-          x    : figX + random(-figBodyW * 3, figBodyW * 3),
-          y    : random(torsoTop - headR * 0.8, surfaceY - 6),
-          age  : 0
-        });
+        bodyWords.push({ text: this.text, age: 0 });
         this.state = 'done';
       }
     }
@@ -314,16 +309,22 @@ function drawFigure() {
 }
 
 function drawBodyWords() {
+  if (bodyWords.length === 0) return;
+  let lineH   = 15;
+  let bodyTop = torsoTop - headR * 1.6;  // extend up through head
   push();
-    textSize(13);
+    textSize(11);
     textStyle(ITALIC);
-    textAlign(CENTER, CENTER);
+    textAlign(CENTER, BOTTOM);
     noStroke();
-    for (let w of bodyWords) {
+    for (let i = 0; i < bodyWords.length; i++) {
+      let wy = surfaceY - 4 - i * lineH;
+      if (wy < bodyTop) break;  // stop when above head
+      let w = bodyWords[i];
       w.age++;
-      let a = min(w.age / 60, 1) * 62;
+      let a = min(w.age / 60, 1) * 72;  // fade in over 60 frames
       fill(210, 190, 140, a);
-      text(w.text, w.x, w.y);
+      text(w.text, figX, wy);
     }
     textStyle(NORMAL);
     textSize(22);
