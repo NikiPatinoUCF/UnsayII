@@ -609,8 +609,13 @@ function drawFigure() {
       drawingContext.rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
       drawingContext.clip();
       let grd = drawingContext.createLinearGradient(0, aTorsoTop + aBodyH, 0, aTorsoTop);
-      grd.addColorStop(0, 'rgba(110,150,200,95)');
-      grd.addColorStop(1, 'rgba(155,190,235,115)');
+      grd.addColorStop(0,    'rgba(255,  0,  0,130)');  // red
+      grd.addColorStop(0.17, 'rgba(255,127,  0,130)');  // orange
+      grd.addColorStop(0.33, 'rgba(240,220,  0,130)');  // yellow
+      grd.addColorStop(0.5,  'rgba(  0,185,  0,130)');  // green
+      grd.addColorStop(0.67, 'rgba(  0, 80,255,130)');  // blue
+      grd.addColorStop(0.83, 'rgba( 75,  0,130,130)');  // indigo
+      grd.addColorStop(1,    'rgba(148,  0,211,130)');  // violet
       drawingContext.fillStyle = grd;
       drawingContext.fillRect(figX - figBodyW * 0.5, aTorsoTop + aBodyH - fh, figBodyW, fh);
       drawingContext.restore();
