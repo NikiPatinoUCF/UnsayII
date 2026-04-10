@@ -31,6 +31,7 @@ let castTimer       = 0;
 let castStart, castCtrl, castEnd;
 let castLastTrigger = 0;
 let nextCastIn      = 0;
+let castSwing       = 0;   // -1 = full backcast, 0 = rest, +1 = full forward
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 function setup() {
@@ -573,6 +574,17 @@ function drawFigure() {
   let dRodTipX   = lerp(rodTip.x,  figX + figBodyW * 0.5, poleT);
   let dRodTipY   = lerp(aRodTipY,  aTorsoTop + aBodyH * 0.45, poleT);
 
+  // Cast swing — pulls arm back (castSwing < 0) or pushes slightly forward (> 0)
+  let swingBack  = constrain(-castSwing, 0, 1);  // 0 = rest, 1 = full backcast
+  let backArmX   = figX + figBodyW * 0.4;           // arm tucked near body
+  let backArmY   = aTorsoTop - aBodyH * 0.18;        // raised high
+  let backRodX   = figX - width  * 0.04;             // rod tip behind the fisher
+  let backRodY   = aTorsoTop - aBodyH * 0.55;        // pointing up and back
+  let cArmTipX   = lerp(dArmTipX, backArmX, swingBack);
+  let cArmTipY   = lerp(dArmTipY, backArmY, swingBack);
+  let cRodTipX   = lerp(dRodTipX, backRodX, swingBack);
+  let cRodTipY   = lerp(dRodTipY, backRodY, swingBack);
+
   let sil = color(40, 35, 30, 210);
   push();
     fill(sil); noStroke();
@@ -580,9 +592,9 @@ function drawFigure() {
     rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
     stroke(sil);
     strokeWeight(max(1.5, figBodyW * 0.6)); noFill();
-    line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, dArmTipX, dArmTipY);
+    line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, cArmTipX, cArmTipY);
     strokeWeight(max(1, figBodyW * 0.3));
-    line(dArmTipX, dArmTipY, dRodTipX, dRodTipY);
+    line(cArmTipX, cArmTipY, cRodTipX, cRodTipY);
   pop();
 }
 
@@ -714,7 +726,7 @@ function drawMeters() {
 
 // ── Cast ───────────────────────────────────────────────────────────────────
 function triggerCast() {
-  castState = 'drawing';
+  castState = 'backcast';
   castTimer = 0;
   let spread = random(width * 0.30, width * 0.50);
   let rise   = random(height * 0.14, height * 0.24);
@@ -736,25 +748,42 @@ function queueCast() {
 }
 
 function drawCast() {
-  if (gameComplete) { castState = 'idle'; return; }
+  if (gameComplete) { castState = 'idle'; castSwing = 0; return; }
   if (castState === 'idle' && frameCount >= castLastTrigger + nextCastIn) {
     triggerCast();
   }
-  if (castState === 'idle') return;
+  if (castState === 'idle') {
+    castSwing = lerp(castSwing, 0, 0.1);
+    return;
+  }
 
   castTimer++;
+
+  // ── Backcast: arm pulls back/up, no line yet ─────────────────────────────
+  if (castState === 'backcast') {
+    let t    = constrain(castTimer / 18, 0, 1);
+    let e    = t * t * (3 - 2 * t);     // smoothstep
+    castSwing = -e;                      // 0 → -1
+    if (castTimer >= 18) { castState = 'drawing'; castTimer = 0; }
+    return;
+  }
+
   let progress, alpha;
 
   if (castState === 'drawing') {
-    progress = castTimer / 50;
-    alpha    = 170;
+    progress  = castTimer / 50;
+    alpha     = 170;
+    // Arm whips forward: castSwing -1 → 0.18
+    castSwing = lerp(-1, 0.18, constrain(castTimer / 50, 0, 1));
     if (castTimer >= 50) { castState = 'holding'; castTimer = 0; queueCast(); }
   } else if (castState === 'holding') {
-    progress = 1; alpha = 170;
+    progress  = 1; alpha = 170;
+    castSwing = lerp(castSwing, 0.05, 0.12);
     if (castTimer >= 20) { castState = 'fading'; castTimer = 0; }
   } else if (castState === 'fading') {
-    progress = 1;
-    alpha    = map(castTimer, 0, 60, 170, 0);
+    progress  = 1;
+    alpha     = map(castTimer, 0, 60, 170, 0);
+    castSwing = lerp(castSwing, 0, 0.06);
     if (castTimer >= 60) { castState = 'idle'; castTimer = 0; return; }
   }
 
