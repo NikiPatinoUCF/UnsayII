@@ -600,6 +600,22 @@ function drawFigure() {
     fill(sil); noStroke();
     ellipse(figX, aTorsoTop - headR, headR * 2, headR * 2);
     rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
+
+    // Held inner glow — drawn after body, clipped to body rect, before arms
+    if (heldSmooth > 0.001) {
+      let fh = aBodyH * heldSmooth;
+      drawingContext.save();
+      drawingContext.beginPath();
+      drawingContext.rect(figX - figBodyW * 0.5, aTorsoTop, figBodyW, aBodyH);
+      drawingContext.clip();
+      let grd = drawingContext.createLinearGradient(0, aTorsoTop + aBodyH, 0, aTorsoTop);
+      grd.addColorStop(0, 'rgba(110,150,200,95)');
+      grd.addColorStop(1, 'rgba(155,190,235,115)');
+      drawingContext.fillStyle = grd;
+      drawingContext.fillRect(figX - figBodyW * 0.5, aTorsoTop + aBodyH - fh, figBodyW, fh);
+      drawingContext.restore();
+    }
+
     stroke(sil);
     strokeWeight(max(1.5, figBodyW * 0.6)); noFill();
     line(figX + figBodyW * 0.5, aTorsoTop + aBodyH * 0.1, cArmTipX, cArmTipY);
@@ -706,20 +722,6 @@ function drawMeters() {
     text('carried', cx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Held: inner glow clipped to torso rect, rises waist→neck ────────────
-  if (heldSmooth > 0.001) {
-    let fh = figBodyH * heldSmooth;
-    drawingContext.save();
-    drawingContext.beginPath();
-    drawingContext.rect(figX - figBodyW * 0.5, torsoTop, figBodyW, figBodyH);
-    drawingContext.clip();
-    let grad = drawingContext.createLinearGradient(0, surfaceY, 0, torsoTop);
-    grad.addColorStop(0, 'rgba(110,150,200, 80)');
-    grad.addColorStop(1, 'rgba(160,198,238,100)');
-    drawingContext.fillStyle = grad;
-    drawingContext.fillRect(figX - figBodyW * 0.5, surfaceY - fh, figBodyW, fh);
-    drawingContext.restore();
-  }
   push();
     noStroke(); textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
     fill(130, 155, 190, 80);
