@@ -712,34 +712,40 @@ function drawMeters() {
     text('carried', lx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Held: clip to figure silhouette, fill rises from feet to head ────────
-  if (heldSmooth > 0.001) {
-    // Total figure height: torso + head (top of head = torsoTop - headR*2)
+  // ── Held: rainbow bar right of figure, toe-to-head, fills bottom-up ──────
+  {
+    let rx      = figX + figBodyW * 0.5 + gap;
     let figTop  = torsoTop - headR * 2;
     let totalH  = surfaceY - figTop;
-    let fh      = totalH * heldSmooth;
-    let fy      = figTop + totalH - fh;  // bottom-aligned rising fill
 
-    drawingContext.save();
-    drawingContext.beginPath();
-    drawingContext.rect(figX - figBodyW * 0.5, torsoTop, figBodyW, figBodyH);
-    drawingContext.arc(figX, torsoTop - headR, headR, 0, Math.PI * 2);
-    drawingContext.clip();
-
+    // Dim track
     noStroke();
-    fill(100, 155, 215, 220);
-    rect(figX - figBodyW, fy, figBodyW * 2, fh + 2);
+    fill(40, 40, 50, 30);
+    rect(rx, figTop, bw, totalH);
 
-    drawingContext.restore();
+    // Rainbow fill
+    if (heldSmooth > 0.001) {
+      let fh = totalH * heldSmooth;
+      let fy = surfaceY - fh;
+      // Gradient: red at bottom (surfaceY), violet at top (figTop)
+      let grad = drawingContext.createLinearGradient(0, surfaceY, 0, figTop);
+      grad.addColorStop(0,    'rgba(255,  0,  0, 175)');  // red
+      grad.addColorStop(0.17, 'rgba(255,127,  0, 175)');  // orange
+      grad.addColorStop(0.33, 'rgba(240,220,  0, 175)');  // yellow
+      grad.addColorStop(0.5,  'rgba(  0,185,  0, 175)');  // green
+      grad.addColorStop(0.67, 'rgba(  0, 80,255, 175)');  // blue
+      grad.addColorStop(0.83, 'rgba( 75,  0,130, 175)');  // indigo
+      grad.addColorStop(1,    'rgba(148,  0,211, 175)');  // violet
+      drawingContext.fillStyle = grad;
+      drawingContext.fillRect(rx, fy, bw, fh);
+    }
+
+    push();
+      textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP); noStroke();
+      fill(130, 155, 190, 80);
+      text('held', rx + bw * 0.5, surfaceY + 7);
+    pop();
   }
-  push();
-    noStroke();
-    textSize(20);
-    textStyle(ITALIC);
-    textAlign(CENTER, TOP);
-    fill(130, 155, 190, 80);
-    text('held', figX, surfaceY + 7);
-  pop();
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────
