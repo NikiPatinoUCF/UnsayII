@@ -689,63 +689,54 @@ function drawMeters() {
   heldSmooth    = lerp(heldSmooth,    heldTarget,    0.04);
 
   let bw  = 6;
-  let bh  = figBodyH;
-  let gap = 12;
-  let lx  = figX - figBodyW * 0.5 - gap - bw;
+  let gap = 10;
 
-  // ── Left: Carried (amber, underwater — depletes downward as words are recovered) ──
+  // ── Carried: left of bucket, underwater, depletes downward ───────────────
+  let cx = bucketX - gap - bw;
   push();
     noStroke();
-    // Track (submerged)
-    fill(60, 45, 20, 35);
-    rect(lx, surfaceY, bw, bh);
-    // Fill — full bar = surface down to depth, shrinks upward as words recovered
+    fill(60, 45, 20, 30);
+    rect(cx, surfaceY, bw, figBodyH);
     if (carriedSmooth > 0.001) {
       fill(200, 145, 55, 155);
-      rect(lx, surfaceY, bw, bh * carriedSmooth);
+      rect(cx, surfaceY, bw, figBodyH * carriedSmooth);
     }
-    // Label — just below the waterline
-    textSize(20);
-    textStyle(ITALIC);
-    textAlign(CENTER, TOP);
+    textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
     fill(200, 165, 85, 70);
-    text('carried', lx + bw * 0.5, surfaceY + 10);
+    text('carried', cx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Held: rainbow bar right of figure, toe-to-head, fills bottom-up ──────
-  {
-    let rx      = figX + figBodyW * 0.5 + gap;
-    let figTop  = torsoTop - headR * 2;
-    let totalH  = surfaceY - figTop;
+  // ── Held: thin rainbow bar right of figure, toe-to-head, rises bottom-up ─
+  let rx     = figX + figBodyW * 0.5 + gap;
+  let figTop = torsoTop - headR * 2;
+  let totalH = surfaceY - figTop;
 
-    // Dim track
-    noStroke();
-    fill(40, 40, 50, 30);
+  // Dim empty track
+  push();
+    noStroke(); fill(40, 40, 50, 25);
     rect(rx, figTop, bw, totalH);
+  pop();
 
-    // Rainbow fill
-    if (heldSmooth > 0.001) {
-      let fh = totalH * heldSmooth;
-      let fy = surfaceY - fh;
-      // Gradient: red at bottom (surfaceY), violet at top (figTop)
-      let grad = drawingContext.createLinearGradient(0, surfaceY, 0, figTop);
-      grad.addColorStop(0,    'rgba(255,  0,  0, 175)');  // red
-      grad.addColorStop(0.17, 'rgba(255,127,  0, 175)');  // orange
-      grad.addColorStop(0.33, 'rgba(240,220,  0, 175)');  // yellow
-      grad.addColorStop(0.5,  'rgba(  0,185,  0, 175)');  // green
-      grad.addColorStop(0.67, 'rgba(  0, 80,255, 175)');  // blue
-      grad.addColorStop(0.83, 'rgba( 75,  0,130, 175)');  // indigo
-      grad.addColorStop(1,    'rgba(148,  0,211, 175)');  // violet
-      drawingContext.fillStyle = grad;
-      drawingContext.fillRect(rx, fy, bw, fh);
-    }
-
-    push();
-      textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP); noStroke();
-      fill(130, 155, 190, 80);
-      text('held', rx + bw * 0.5, surfaceY + 7);
-    pop();
+  if (heldSmooth > 0.001) {
+    let fh = totalH * heldSmooth;
+    // Gradient defined over full bar height: red at bottom, violet at top
+    let grad = drawingContext.createLinearGradient(0, surfaceY, 0, figTop);
+    grad.addColorStop(0,    'rgba(255,  0,  0, 190)');  // red
+    grad.addColorStop(0.17, 'rgba(255,127,  0, 190)');  // orange
+    grad.addColorStop(0.33, 'rgba(240,220,  0, 190)');  // yellow
+    grad.addColorStop(0.5,  'rgba(  0,185,  0, 190)');  // green
+    grad.addColorStop(0.67, 'rgba(  0, 80,255, 190)');  // blue
+    grad.addColorStop(0.83, 'rgba( 75,  0,130, 190)');  // indigo
+    grad.addColorStop(1,    'rgba(148,  0,211, 190)');  // violet
+    drawingContext.fillStyle = grad;
+    drawingContext.fillRect(rx, surfaceY - fh, bw, fh);
   }
+
+  push();
+    noStroke(); textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
+    fill(130, 155, 190, 80);
+    text('held', rx + bw * 0.5, surfaceY + 7);
+  pop();
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────
