@@ -706,36 +706,24 @@ function drawMeters() {
     text('carried', cx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Held: thin rainbow bar right of figure, toe-to-head, rises bottom-up ─
-  let rx     = figX + figBodyW * 0.5 + gap;
-  let figTop = torsoTop - headR * 2;
-  let totalH = surfaceY - figTop;
-
-  // Dim empty track
-  push();
-    noStroke(); fill(40, 40, 50, 25);
-    rect(rx, figTop, bw, totalH);
-  pop();
-
+  // ── Held: inner glow clipped to torso rect, rises waist→neck ────────────
   if (heldSmooth > 0.001) {
-    let fh = totalH * heldSmooth;
-    // Gradient defined over full bar height: red at bottom, violet at top
-    let grad = drawingContext.createLinearGradient(0, surfaceY, 0, figTop);
-    grad.addColorStop(0,    'rgba(255,  0,  0, 190)');  // red
-    grad.addColorStop(0.17, 'rgba(255,127,  0, 190)');  // orange
-    grad.addColorStop(0.33, 'rgba(240,220,  0, 190)');  // yellow
-    grad.addColorStop(0.5,  'rgba(  0,185,  0, 190)');  // green
-    grad.addColorStop(0.67, 'rgba(  0, 80,255, 190)');  // blue
-    grad.addColorStop(0.83, 'rgba( 75,  0,130, 190)');  // indigo
-    grad.addColorStop(1,    'rgba(148,  0,211, 190)');  // violet
+    let fh = figBodyH * heldSmooth;
+    drawingContext.save();
+    drawingContext.beginPath();
+    drawingContext.rect(figX - figBodyW * 0.5, torsoTop, figBodyW, figBodyH);
+    drawingContext.clip();
+    let grad = drawingContext.createLinearGradient(0, surfaceY, 0, torsoTop);
+    grad.addColorStop(0, 'rgba(110,150,200, 80)');
+    grad.addColorStop(1, 'rgba(160,198,238,100)');
     drawingContext.fillStyle = grad;
-    drawingContext.fillRect(rx, surfaceY - fh, bw, fh);
+    drawingContext.fillRect(figX - figBodyW * 0.5, surfaceY - fh, figBodyW, fh);
+    drawingContext.restore();
   }
-
   push();
     noStroke(); textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
     fill(130, 155, 190, 80);
-    text('held', rx + bw * 0.5, surfaceY + 7);
+    text('held', figX, surfaceY + 7);
   pop();
 }
 
