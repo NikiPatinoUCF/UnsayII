@@ -32,6 +32,7 @@ let castStart, castCtrl, castEnd;
 let castLastTrigger = 0;
 let nextCastIn      = 0;
 let castSwing       = 0;   // -1 = full backcast, 0 = rest, +1 = full forward
+let liveRodTip      = {x: 0, y: 0};  // animated rod tip, set each frame by drawFigure()
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 function setup() {
@@ -310,6 +311,11 @@ class Fragment {
       rotate(this.rotation);
       noStroke();
       fill(red(c), green(c), blue(c), alpha(c) * this.eatAlpha);
+      if (this.state === 'returning') {
+        // Shrink as word arcs into bucket (ease-in curve)
+        let shrink = this.returnT * this.returnT;
+        textSize(lerp(46, 13, shrink));
+      }
       text(this.text, 0, 0);
     pop();
   }
@@ -585,6 +591,10 @@ function drawFigure() {
   let cRodTipX   = lerp(dRodTipX, backRodX, swingBack);
   let cRodTipY   = lerp(dRodTipY, backRodY, swingBack);
 
+  // Expose live rod tip for cast line attachment
+  liveRodTip.x = cRodTipX;
+  liveRodTip.y = cRodTipY;
+
   let sil = color(40, 35, 30, 210);
   push();
     fill(sil); noStroke();
@@ -682,7 +692,6 @@ function drawMeters() {
   let bh  = figBodyH;
   let gap = 12;
   let lx  = figX - figBodyW * 0.5 - gap - bw;
-  let rx  = figX + figBodyW * 0.5 + gap;
 
   // ── Left: Carried (amber, underwater — depletes downward as words are recovered) ──
   push();
@@ -703,24 +712,27 @@ function drawMeters() {
     text('carried', lx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Right: Held (blue-gray, above water — fills bottom-up) ───────────────
+  // ── Right: Held (blue-gray fill rising inside the figure body) ──────────
   push();
     noStroke();
-    // Track (above water, alongside figure)
-    fill(25, 35, 55, 45);
-    rect(rx, torsoTop, bw, bh);
-    // Fill
     if (heldSmooth > 0.001) {
-      let fh = bh * heldSmooth;
-      fill(130, 155, 190, 175);
-      rect(rx, torsoTop + bh - fh, bw, fh);
+      let fh  = figBodyH * heldSmooth;
+      let fy  = torsoTop + figBodyH - fh;
+      fill(100, 140, 185, 145);
+      rect(figX - figBodyW * 0.5, fy, figBodyW, fh);
+      // Bleed into head once body is nearly full
+      if (heldSmooth > 0.88) {
+        let hf = (heldSmooth - 0.88) / 0.12;
+        fill(100, 140, 185, 145 * hf);
+        ellipse(figX, torsoTop - headR, headR * 2, headR * 2);
+      }
     }
-    // Label
+    // Label — centered on figure, just below waterline
     textSize(20);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
     fill(130, 155, 190, 80);
-    text('held', rx + bw * 0.5, surfaceY + 7);
+    text('held', figX, surfaceY + 7);
   pop();
 }
 
@@ -795,8 +807,8 @@ function drawCast() {
     for (let i = 0; i <= 48; i++) {
       let t  = (i / 48) * progress;
       let mt = 1 - t;
-      vertex(mt*mt*castStart.x + 2*mt*t*castCtrl.x + t*t*castEnd.x,
-             mt*mt*castStart.y + 2*mt*t*castCtrl.y + t*t*castEnd.y);
+      vertex(mt*mt*liveRodTip.x + 2*mt*t*castCtrl.x + t*t*castEnd.x,
+             mt*mt*liveRodTip.y + 2*mt*t*castCtrl.y + t*t*castEnd.y);
     }
     endShape();
   pop();
