@@ -99,6 +99,7 @@ function draw() {
   drawSunReflection();
 
   drawSurface();
+  drawDock();
   updateFish();
   drawBucket();
   drawFigure();
@@ -549,6 +550,35 @@ function drawHeading() {
   pop();
 }
 
+function drawDock() {
+  let dl = figX - width * 0.065;
+  let dr = figX + width * 0.022;
+  let dw = dr - dl;
+  let pilDepth = height * 0.13;
+
+  push();
+    noStroke();
+    // Pilings into the water
+    fill(38, 24, 12, 200);
+    let pilXs = [dl + 10, dl + dw * 0.48, dr - 10];
+    for (let px of pilXs) {
+      rect(px - 5, surfaceY - 4, 10, pilDepth, 3);
+    }
+    // Lower plank
+    fill(58, 40, 22, 245);
+    stroke(26, 14, 5, 130);
+    strokeWeight(1);
+    rect(dl, surfaceY - 7, dw, 7, 1);
+    // Upper plank (slightly lighter grain)
+    fill(66, 46, 26, 230);
+    rect(dl, surfaceY - 13, dw, 6, 1);
+    // Dark gap between planks
+    noStroke();
+    fill(18, 10, 4, 180);
+    rect(dl + 2, surfaceY - 8, dw - 4, 1);
+  pop();
+}
+
 function drawMeters() {
   let carriedTarget = 1 - constrain(bucket.length / corpusUnsaid.length, 0, 1);
   let heldTarget    = constrain(saidEatenCount / corpusSaid.length, 0, 1);
@@ -557,44 +587,43 @@ function drawMeters() {
 
   let bw  = 6;
   let bh  = figBodyH;
-  let by  = torsoTop;
   let gap = 12;
   let lx  = figX - figBodyW * 0.5 - gap - bw;
   let rx  = figX + figBodyW * 0.5 + gap;
 
-  // ── Left: Carried (amber, depletes top-down) ──────────────────────────────
+  // ── Left: Carried (amber, underwater — depletes downward as words are recovered) ──
   push();
     noStroke();
-    // Track
-    fill(60, 45, 20, 45);
-    rect(lx, by, bw, bh);
-    // Fill
+    // Track (submerged)
+    fill(60, 45, 20, 35);
+    rect(lx, surfaceY, bw, bh);
+    // Fill — full bar = surface down to depth, shrinks upward as words recovered
     if (carriedSmooth > 0.001) {
-      fill(200, 145, 55, 175);
-      rect(lx, by, bw, bh * carriedSmooth);
+      fill(200, 145, 55, 155);
+      rect(lx, surfaceY, bw, bh * carriedSmooth);
     }
-    // Label
-    textSize(16);
+    // Label — just below the waterline
+    textSize(20);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
-    fill(200, 165, 85, 80);
-    text('carried', lx + bw * 0.5, surfaceY + 7);
+    fill(200, 165, 85, 70);
+    text('carried', lx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Right: Held (blue-gray, fills bottom-up) ──────────────────────────────
+  // ── Right: Held (blue-gray, above water — fills bottom-up) ───────────────
   push();
     noStroke();
-    // Track
+    // Track (above water, alongside figure)
     fill(25, 35, 55, 45);
-    rect(rx, by, bw, bh);
+    rect(rx, torsoTop, bw, bh);
     // Fill
     if (heldSmooth > 0.001) {
       let fh = bh * heldSmooth;
       fill(130, 155, 190, 175);
-      rect(rx, by + bh - fh, bw, fh);
+      rect(rx, torsoTop + bh - fh, bw, fh);
     }
     // Label
-    textSize(16);
+    textSize(20);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
     fill(130, 155, 190, 80);
