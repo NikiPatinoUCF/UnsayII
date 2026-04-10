@@ -14,6 +14,8 @@ let heldSmooth     = 0.0;
 // Ending
 let gameComplete  = false;
 let sunsetT       = 0;
+let nightT        = 0;
+let stars         = [];
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -57,6 +59,15 @@ function setup() {
   castStart = createVector(rodTip.x, rodTip.y);
   castCtrl  = createVector(rodTip.x, rodTip.y);
   castEnd   = createVector(rodTip.x, rodTip.y);
+
+  for (let i = 0; i < 130; i++) {
+    stars.push({
+      x:       random(width),
+      y:       random(surfaceY * 0.92),
+      r:       random(0.5, 2.4),
+      twinkle: random(TWO_PI)
+    });
+  }
 }
 
 // ── Draw ───────────────────────────────────────────────────────────────────
@@ -66,35 +77,43 @@ function draw() {
     gameComplete = true;
   }
   if (gameComplete) sunsetT = min(1, sunsetT + 1 / 600);  // ~10 seconds
+  if (sunsetT >= 1)  nightT  = min(1, nightT  + 1 / 900);  // ~15 seconds after sunset
 
   // ── Sky ────────────────────────────────────────────────────────────────────
   if (sunsetT < 0.002) {
     background(18, 12, 8);
   } else {
     let s = sunsetT;
+    let n = nightT;
+    // Sunset colors blend toward deep night indigo as nightT rises
     let grad = drawingContext.createLinearGradient(0, 0, 0, surfaceY);
-    grad.addColorStop(0,    `rgb(${_l(18,22,s)},${_l(12,6,s)},${_l(8,42,s)})`);
-    grad.addColorStop(0.35, `rgb(${_l(18,110,s)},${_l(12,28,s)},${_l(8,20,s)})`);
-    grad.addColorStop(0.65, `rgb(${_l(18,200,s)},${_l(12,72,s)},${_l(8,18,s)})`);
-    grad.addColorStop(0.85, `rgb(${_l(18,232,s)},${_l(12,118,s)},${_l(8,28,s)})`);
-    grad.addColorStop(1,    `rgb(${_l(18,248,s)},${_l(12,162,s)},${_l(8,52,s)})`);
+    grad.addColorStop(0,    `rgb(${_l(_l(18,22,s), 3,  n)},${_l(_l(12,6,s),  4,  n)},${_l(_l(8,42,s),  16, n)})`);
+    grad.addColorStop(0.35, `rgb(${_l(_l(18,110,s),5,  n)},${_l(_l(12,28,s), 6,  n)},${_l(_l(8,20,s),  24, n)})`);
+    grad.addColorStop(0.65, `rgb(${_l(_l(18,200,s),7,  n)},${_l(_l(12,72,s), 9,  n)},${_l(_l(8,18,s),  34, n)})`);
+    grad.addColorStop(0.85, `rgb(${_l(_l(18,232,s),9,  n)},${_l(_l(12,118,s),13, n)},${_l(_l(8,28,s),  40, n)})`);
+    grad.addColorStop(1,    `rgb(${_l(_l(18,248,s),11, n)},${_l(_l(12,162,s),19, n)},${_l(_l(8,52,s),  46, n)})`);
     drawingContext.fillStyle = grad;
     drawingContext.fillRect(0, 0, width, surfaceY);
 
-    // Sun orb glow in sky
-    let scx = width * 0.55;
-    let scy = surfaceY - height * 0.07;
-    let sg  = drawingContext.createRadialGradient(scx, scy, 0, scx, scy, height * 0.18 * s);
-    sg.addColorStop(0,   `rgba(255,215,110,${s * 0.55})`);
-    sg.addColorStop(0.4, `rgba(245,140,42,${s * 0.28})`);
-    sg.addColorStop(1,   `rgba(200,65,18,0)`);
-    drawingContext.fillStyle = sg;
-    drawingContext.fillRect(0, 0, width, surfaceY);
+    // Sun orb — fades out as night rises
+    let sunFade = s * (1 - n);
+    if (sunFade > 0.01) {
+      let scx = width * 0.55;
+      let scy = surfaceY - height * 0.07;
+      let sg  = drawingContext.createRadialGradient(scx, scy, 0, scx, scy, height * 0.18 * s);
+      sg.addColorStop(0,   `rgba(255,215,110,${sunFade * 0.55})`);
+      sg.addColorStop(0.4, `rgba(245,140,42,${sunFade * 0.28})`);
+      sg.addColorStop(1,   `rgba(200,65,18,0)`);
+      drawingContext.fillStyle = sg;
+      drawingContext.fillRect(0, 0, width, surfaceY);
+    }
   }
+
+  drawNightSky();  // stars + moon disc (sky layer, before water)
 
   // ── Water ──────────────────────────────────────────────────────────────────
   noStroke();
-  fill(_l(2,16,sunsetT), _l(8,8,sunsetT), _l(22,22,sunsetT));
+  fill(_l(_l(2,16,sunsetT), 4, nightT), _l(_l(8,8,sunsetT), 8, nightT), _l(_l(22,22,sunsetT), 30, nightT));
   rect(0, surfaceY, width, height - surfaceY);
   drawSunReflection();
 
@@ -417,39 +436,101 @@ function pickFragment(corpusArr) {
 
 // ── Scene drawing ──────────────────────────────────────────────────────────
 function drawSunReflection() {
-  if (sunsetT < 0.04) return;
-  let s  = min(sunsetT * 1.4, 1);
-  let cx = width * 0.55;
+  let sunS = min(sunsetT * 1.4, 1) * (1 - nightT);  // sun reflection fades with night
+  let cx   = width * 0.55;
 
+  // Sun reflection (warm)
+  if (sunS > 0.018) {
+    push();
+      for (let y = surfaceY + 1; y < height; y += 2) {
+        let depth  = (y - surfaceY) / (height - surfaceY);
+        let bright = sunS * pow(1 - depth, 0.55);
+        if (bright < 0.018) continue;
+
+        let wA   = sin(y * 0.068 + frameCount * 0.007) * 0.5 + 0.5;
+        let wB   = sin(y * 0.21  + frameCount * 0.011) * 0.35 + 0.65;
+        let maxW = width * 0.26 * sunS * (1 - depth * 0.55);
+        let lw   = maxW * wA * wB;
+        let cw   = lw * 0.14;
+        let gw   = lw * 0.52;
+        stroke(255, 246, 218, 230 * bright);
+        strokeWeight(1.8);
+        line(cx - cw, y, cx + cw, y);
+        stroke(242, 162, 42, 150 * bright * wA);
+        strokeWeight(1.2);
+        line(cx - gw, y, cx - cw, y);
+        line(cx + cw, y, cx + gw, y);
+        stroke(215, 80, 28, 75 * bright * wB);
+        strokeWeight(1);
+        line(cx - lw, y, cx - gw, y);
+        line(cx + gw, y, cx + lw, y);
+      }
+    pop();
+  }
+
+  // Moon reflection (cool, fades in)
+  let moonS = constrain((nightT - 0.08) / 0.92, 0, 1);
+  if (moonS > 0.01) {
+    let mx = width * 0.68;
+    push();
+      for (let y = surfaceY + 1; y < height; y += 2) {
+        let depth  = (y - surfaceY) / (height - surfaceY);
+        let bright = moonS * pow(1 - depth, 0.65);
+        if (bright < 0.015) continue;
+
+        let wA   = sin(y * 0.072 + frameCount * 0.006) * 0.5 + 0.5;
+        let wB   = sin(y * 0.19  + frameCount * 0.010) * 0.35 + 0.65;
+        let maxW = width * 0.12 * moonS * (1 - depth * 0.6);
+        let lw   = maxW * wA * wB;
+        let cw   = lw * 0.22;
+        stroke(210, 220, 242, 185 * bright);
+        strokeWeight(1.6);
+        line(mx - cw, y, mx + cw, y);
+        stroke(170, 192, 225, 85 * bright * wA);
+        strokeWeight(1);
+        line(mx - lw, y, mx - cw, y);
+        line(mx + cw, y, mx + lw, y);
+      }
+    pop();
+  }
+}
+
+function drawNightSky() {
+  if (nightT < 0.01) return;
+  let n = nightT;
+
+  // Stars — fade in, gently twinkle
   push();
-    for (let y = surfaceY + 1; y < height; y += 2) {
-      let depth  = (y - surfaceY) / (height - surfaceY);
-      let bright = s * pow(1 - depth, 0.55);
-      if (bright < 0.018) continue;
-
-      // Two overlapping waves create organic shimmer
-      let wA   = sin(y * 0.068 + frameCount * 0.007) * 0.5 + 0.5;
-      let wB   = sin(y * 0.21  + frameCount * 0.011) * 0.35 + 0.65;
-      let maxW = width * 0.26 * s * (1 - depth * 0.55);
-      let lw   = maxW * wA * wB;
-
-      let cw = lw * 0.14;  // bright core
-      let gw = lw * 0.52;  // gold band
-      // Core — warm cream/white
-      stroke(255, 246, 218, 230 * bright);
-      strokeWeight(1.8);
-      line(cx - cw, y, cx + cw, y);
-      // Gold band
-      stroke(242, 162, 42, 150 * bright * wA);
-      strokeWeight(1.2);
-      line(cx - gw, y, cx - cw, y);
-      line(cx + cw, y, cx + gw, y);
-      // Amber/rose outer
-      stroke(215, 80, 28, 75 * bright * wB);
-      strokeWeight(1);
-      line(cx - lw, y, cx - gw, y);
-      line(cx + gw, y, cx + lw, y);
+    noStroke();
+    for (let st of stars) {
+      let tw = sin(frameCount * 0.038 + st.twinkle) * 0.5 + 0.5;
+      let a  = n * (0.5 + tw * 0.5) * 200;
+      fill(218, 224, 242, a);
+      ellipse(st.x, st.y, st.r * 2, st.r * 2);
     }
+  pop();
+
+  // Moon — rises from horizon as nightT increases
+  let mx = width * 0.68;
+  let my = surfaceY - height * (nightT * 0.38);
+  let mr = height * 0.044;
+
+  // Outer atmospheric glow
+  let mg = drawingContext.createRadialGradient(mx, my, 0, mx, my, mr * 4);
+  mg.addColorStop(0,   `rgba(195,210,238,${n * 0.22})`);
+  mg.addColorStop(0.45,`rgba(170,192,228,${n * 0.10})`);
+  mg.addColorStop(1,   `rgba(140,172,218,0)`);
+  drawingContext.fillStyle = mg;
+  drawingContext.fillRect(mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
+
+  // Moon disc
+  push();
+    noStroke();
+    fill(212, 222, 242, n * 215);
+    ellipse(mx, my, mr * 2, mr * 2);
+    // Subtle highlight
+    fill(238, 242, 255, n * 70);
+    ellipse(mx - mr * 0.2, my - mr * 0.2, mr * 0.85, mr * 0.85);
   pop();
 }
 
