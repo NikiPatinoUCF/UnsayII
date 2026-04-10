@@ -309,13 +309,13 @@ class Fragment {
     push();
       translate(this.x, this.y);
       rotate(this.rotation);
+      if (this.state === 'returning') {
+        // Hold full size for first 40%, then collapse rapidly to ~18%
+        let t = constrain((this.returnT - 0.4) / 0.6, 0, 1);
+        scale(lerp(1, 0.18, t * t * t));
+      }
       noStroke();
       fill(red(c), green(c), blue(c), alpha(c) * this.eatAlpha);
-      if (this.state === 'returning') {
-        // Shrink as word arcs into bucket (ease-in curve)
-        let shrink = this.returnT * this.returnT;
-        textSize(lerp(46, 13, shrink));
-      }
       text(this.text, 0, 0);
     pop();
   }
@@ -712,22 +712,28 @@ function drawMeters() {
     text('carried', lx + bw * 0.5, surfaceY + 10);
   pop();
 
-  // ── Right: Held (blue-gray fill rising inside the figure body) ──────────
+  // ── Held: clip to figure silhouette, fill rises from feet to head ────────
+  if (heldSmooth > 0.001) {
+    // Total figure height: torso + head (top of head = torsoTop - headR*2)
+    let figTop  = torsoTop - headR * 2;
+    let totalH  = surfaceY - figTop;
+    let fh      = totalH * heldSmooth;
+    let fy      = figTop + totalH - fh;  // bottom-aligned rising fill
+
+    drawingContext.save();
+    drawingContext.beginPath();
+    drawingContext.rect(figX - figBodyW * 0.5, torsoTop, figBodyW, figBodyH);
+    drawingContext.arc(figX, torsoTop - headR, headR, 0, Math.PI * 2);
+    drawingContext.clip();
+
+    noStroke();
+    fill(100, 155, 215, 220);
+    rect(figX - figBodyW, fy, figBodyW * 2, fh + 2);
+
+    drawingContext.restore();
+  }
   push();
     noStroke();
-    if (heldSmooth > 0.001) {
-      let fh  = figBodyH * heldSmooth;
-      let fy  = torsoTop + figBodyH - fh;
-      fill(100, 140, 185, 145);
-      rect(figX - figBodyW * 0.5, fy, figBodyW, fh);
-      // Bleed into head once body is nearly full
-      if (heldSmooth > 0.88) {
-        let hf = (heldSmooth - 0.88) / 0.12;
-        fill(100, 140, 185, 145 * hf);
-        ellipse(figX, torsoTop - headR, headR * 2, headR * 2);
-      }
-    }
-    // Label — centered on figure, just below waterline
     textSize(20);
     textStyle(ITALIC);
     textAlign(CENTER, TOP);
