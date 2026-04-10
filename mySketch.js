@@ -16,6 +16,7 @@ let gameComplete  = false;
 let sunsetT       = 0;
 let nightT        = 0;
 let stars         = [];
+let shootingStarT = -1;   // -1 = not yet, 0→1 = in flight, >1 = done
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -539,6 +540,41 @@ function drawNightSky() {
     fill(238, 242, 255, n * 70);
     ellipse(mx - mr * 0.2, my - mr * 0.2, mr * 0.85, mr * 0.85);
   pop();
+
+  // Shooting star — fires once when night is well established
+  if (nightT >= 0.65 && shootingStarT === -1) shootingStarT = 0;
+  if (shootingStarT >= 0 && shootingStarT <= 1.08) {
+    shootingStarT += 1 / 105;
+    let t   = constrain(shootingStarT, 0, 1);
+    // Path: upper-left to lower-right across the sky
+    let sx  = width * 0.08,  sy = surfaceY * 0.08;
+    let ex  = width * 0.78,  ey = surfaceY * 0.52;
+    let hx  = lerp(sx, ex, t),        hy  = lerp(sy, ey, t);
+    let tailT = max(0, t - 0.16);
+    let tx  = lerp(sx, ex, tailT),    ty  = lerp(sy, ey, tailT);
+    // Fade out over last 20% of flight
+    let a   = t < 0.8 ? 1 : map(t, 0.8, 1, 1, 0);
+
+    // Gradient tail
+    let trail = drawingContext.createLinearGradient(tx, ty, hx, hy);
+    trail.addColorStop(0, `rgba(200,215,255,0)`);
+    trail.addColorStop(1, `rgba(255,255,255,${(a * 0.95).toFixed(3)})`);
+    drawingContext.save();
+    drawingContext.strokeStyle = trail;
+    drawingContext.lineWidth   = 2.2;
+    drawingContext.beginPath();
+    drawingContext.moveTo(tx, ty);
+    drawingContext.lineTo(hx, hy);
+    drawingContext.stroke();
+    // Head glow
+    let glow = drawingContext.createRadialGradient(hx, hy, 0, hx, hy, 18);
+    glow.addColorStop(0,   `rgba(255,255,255,${(a * 0.92).toFixed(3)})`);
+    glow.addColorStop(0.4, `rgba(210,225,255,${(a * 0.45).toFixed(3)})`);
+    glow.addColorStop(1,   'rgba(180,200,255,0)');
+    drawingContext.fillStyle = glow;
+    drawingContext.fillRect(hx - 18, hy - 18, 36, 36);
+    drawingContext.restore();
+  }
 }
 
 function drawSurface() {
@@ -722,15 +758,6 @@ function drawMeters() {
       fill(200, 145, 55, 155);
       rect(cx, surfaceY, bw, figBodyH * carriedSmooth);
     }
-    textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
-    fill(200, 165, 85, 70);
-    text('carried', cx + bw * 0.5, surfaceY + 10);
-  pop();
-
-  push();
-    noStroke(); textSize(20); textStyle(ITALIC); textAlign(CENTER, TOP);
-    fill(130, 155, 190, 80);
-    text('held', figX, surfaceY + 7);
   pop();
 }
 
