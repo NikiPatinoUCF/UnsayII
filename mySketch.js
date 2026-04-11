@@ -16,7 +16,10 @@ let gameComplete  = false;
 let sunsetT       = 0;
 let nightT        = 0;
 let stars         = [];
-let shootingStarT = -1;   // -1 = not yet, 0→1 = in flight, >1 = done
+let shootingStarT  = -1;      // -1 = idle, 0→>1 = in flight
+let autoStarFired  = false;
+let moonClicksLeft = 0;       // unlocks to 2 after auto star completes
+let starSX, starSY, starEX, starEY;  // randomised path per launch
 
 let surfaceY;
 let warmWhite, deepBlue;
@@ -159,12 +162,26 @@ function draw() {
   let figHover = castState === 'idle' &&
     mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
     mouseY > rodTip.y - 20 && mouseY < surfaceY;
-  cursor(hovering || figHover ? HAND : ARROW);
+  let moonHover = gameComplete && moonClicksLeft > 0 && shootingStarT < 0 &&
+    dist(mouseX, mouseY, width * 0.68, surfaceY - height * (nightT * 0.38)) < height * 0.044 * 2.2;
+  cursor(hovering || figHover || moonHover ? HAND : ARROW);
 }
 
 // ── Input ──────────────────────────────────────────────────────────────────
 function mouseClicked() {
   if (mouseButton !== LEFT) return;
+
+  // Moon click — trigger bonus shooting stars during night
+  if (gameComplete && moonClicksLeft > 0 && shootingStarT < 0) {
+    let moonMx = width * 0.68;
+    let moonMy = surfaceY - height * (nightT * 0.38);
+    let moonMr = height * 0.044;
+    if (dist(mouseX, mouseY, moonMx, moonMy) < moonMr * 2.2) {
+      launchShootingStar();
+      moonClicksLeft--;
+      return;
+    }
+  }
 
   if (castState === 'idle' &&
       mouseX > figX - width * 0.04 && mouseX < rodTip.x + 20 &&
@@ -503,6 +520,14 @@ function drawSunReflection() {
   }
 }
 
+function launchShootingStar() {
+  starSX = random(width * 0.05, width * 0.35);
+  starSY = random(surfaceY * 0.04, surfaceY * 0.22);
+  starEX = random(width * 0.55, width * 0.95);
+  starEY = random(surfaceY * 0.25, surfaceY * 0.60);
+  shootingStarT = 0;
+}
+
 function drawNightSky() {
   if (nightT < 0.01) return;
   let n = nightT;
@@ -541,39 +566,51 @@ function drawNightSky() {
     ellipse(mx - mr * 0.2, my - mr * 0.2, mr * 0.85, mr * 0.85);
   pop();
 
-  // Shooting star — fires once when night is well established
-  if (nightT >= 0.65 && shootingStarT === -1) shootingStarT = 0;
-  if (shootingStarT >= 0 && shootingStarT <= 1.08) {
-    shootingStarT += 1 / 105;
-    let t   = constrain(shootingStarT, 0, 1);
-    // Path: upper-left to lower-right across the sky
-    let sx  = width * 0.08,  sy = surfaceY * 0.08;
-    let ex  = width * 0.78,  ey = surfaceY * 0.52;
-    let hx  = lerp(sx, ex, t),        hy  = lerp(sy, ey, t);
-    let tailT = max(0, t - 0.16);
-    let tx  = lerp(sx, ex, tailT),    ty  = lerp(sy, ey, tailT);
-    // Fade out over last 20% of flight
-    let a   = t < 0.8 ? 1 : map(t, 0.8, 1, 1, 0);
+  // Auto-fire first shooting star once night is established
+  if (nightT >= 0.5 && !autoStarFired && shootingStarT < 0) {
+    launchShootingStar();
+    autoStarFired = true;
+  }
 
-    // Gradient tail
-    let trail = drawingContext.createLinearGradient(tx, ty, hx, hy);
-    trail.addColorStop(0, `rgba(200,215,255,0)`);
-    trail.addColorStop(1, `rgba(255,255,255,${(a * 0.95).toFixed(3)})`);
-    drawingContext.save();
-    drawingContext.strokeStyle = trail;
-    drawingContext.lineWidth   = 2.2;
-    drawingContext.beginPath();
-    drawingContext.moveTo(tx, ty);
-    drawingContext.lineTo(hx, hy);
-    drawingContext.stroke();
-    // Head glow
-    let glow = drawingContext.createRadialGradient(hx, hy, 0, hx, hy, 18);
-    glow.addColorStop(0,   `rgba(255,255,255,${(a * 0.92).toFixed(3)})`);
-    glow.addColorStop(0.4, `rgba(210,225,255,${(a * 0.45).toFixed(3)})`);
-    glow.addColorStop(1,   'rgba(180,200,255,0)');
-    drawingContext.fillStyle = glow;
-    drawingContext.fillRect(hx - 18, hy - 18, 36, 36);
-    drawingContext.restore();
+  // Animate active shooting star
+  if (shootingStarT >= 0) {
+    shootingStarT += 1 / 105;
+
+    if (shootingStarT > 1.1) {
+      // Star finished — unlock moon clicks on first completion
+      shootingStarT = -1;
+      if (moonClicksLeft === 0) moonClicksLeft = 2;
+    } else {
+      let t     = constrain(shootingStarT, 0, 1);
+      let hx    = lerp(starSX, starEX, t);
+      let hy    = lerp(starSY, starEY, t);
+      let tailT = max(0, t - 0.15);
+      let tx    = lerp(starSX, starEX, tailT);
+      let ty    = lerp(starSY, starEY, tailT);
+      let a     = t < 0.8 ? 1 : map(t, 0.8, 1, 1, 0);
+
+      drawingContext.save();
+      // Skip gradient line if head and tail haven't separated yet
+      if (dist(tx, ty, hx, hy) > 1) {
+        let trail = drawingContext.createLinearGradient(tx, ty, hx, hy);
+        trail.addColorStop(0, 'rgba(200,215,255,0)');
+        trail.addColorStop(1, `rgba(255,255,255,${(a * 0.95).toFixed(3)})`);
+        drawingContext.strokeStyle = trail;
+        drawingContext.lineWidth   = 2.5;
+        drawingContext.beginPath();
+        drawingContext.moveTo(tx, ty);
+        drawingContext.lineTo(hx, hy);
+        drawingContext.stroke();
+      }
+      // Head glow
+      let glow = drawingContext.createRadialGradient(hx, hy, 0, hx, hy, 20);
+      glow.addColorStop(0,   `rgba(255,255,255,${(a * 0.95).toFixed(3)})`);
+      glow.addColorStop(0.4, `rgba(210,228,255,${(a * 0.48).toFixed(3)})`);
+      glow.addColorStop(1,   'rgba(180,200,255,0)');
+      drawingContext.fillStyle = glow;
+      drawingContext.fillRect(hx - 20, hy - 20, 40, 40);
+      drawingContext.restore();
+    }
   }
 }
 
