@@ -13,6 +13,7 @@ let heldSmooth     = 0.0;
 
 // Ending
 let gameComplete  = false;
+let winPauseTimer = 0;   // counts up after gameComplete; sunset starts after threshold
 let sunsetT       = 0;
 let nightT        = 0;
 let stars         = [];
@@ -82,7 +83,8 @@ function draw() {
   if (!gameComplete && bucket.length >= corpusUnsaid.length && saidEatenCount >= corpusSaid.length) {
     gameComplete = true;
   }
-  if (gameComplete) sunsetT = min(1, sunsetT + 1 / 600);  // ~10 seconds
+  if (gameComplete) winPauseTimer++;
+  if (gameComplete && winPauseTimer > 150) sunsetT = min(1, sunsetT + 1 / 600);  // ~10 seconds
   if (sunsetT >= 1)  nightT  = min(1, nightT  + 1 / 900);  // ~15 seconds after sunset
 
   // ── Sky ────────────────────────────────────────────────────────────────────
