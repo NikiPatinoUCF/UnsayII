@@ -781,21 +781,6 @@ function drawMeters() {
   let heldTarget    = constrain(saidEatenCount / corpusSaid.length, 0, 1);
   carriedSmooth = lerp(carriedSmooth, carriedTarget, 0.04);
   heldSmooth    = lerp(heldSmooth,    heldTarget,    0.04);
-
-  let bw  = 6;
-  let gap = 10;
-
-  // ── Carried: left of bucket, underwater, depletes downward ───────────────
-  let cx = bucketX - gap - bw;
-  push();
-    noStroke();
-    fill(60, 45, 20, 30);
-    rect(cx, surfaceY, bw, figBodyH);
-    if (carriedSmooth > 0.001) {
-      fill(200, 145, 55, 155);
-      rect(cx, surfaceY, bw, figBodyH * carriedSmooth);
-    }
-  pop();
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────
